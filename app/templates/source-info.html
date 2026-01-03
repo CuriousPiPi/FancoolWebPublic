@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>数据来源与说明 - 风扇库</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+  <!-- 主题同步（与主页 / legal.html 一致） -->
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fancool.css') }}">
+  <style>
+    /* 比 legal.html 更宽一些 */
+    .source-container {
+      max-width: 1160px; 
+    }
+    .hero-img {
+      width:100%;
+      max-width:1100px;
+      display:block;
+      margin:0 auto 1.2rem;
+      border-radius:14px;
+      box-shadow:0 6px 24px -8px rgba(0,0,0,.18);
+      background:#fff;
+    }
+    [data-theme="dark"] .hero-img { background:#1f2937; }
+    figure {
+      margin:2rem 0 1.2rem;
+      text-align:center;
+    }
+    figure img {
+      max-width:360px;
+      width:100%;
+      height:360px;
+      object-fit:contain;
+      background:#fff;
+      border:1px solid var(--border-color);
+      border-radius:14px;
+      padding:6px;
+      box-shadow:0 4px 18px -8px rgba(0,0,0,.15);
+    }
+    [data-theme="dark"] figure img { background:#111827; }
+    figure figcaption {
+      font-size:.75rem;
+      color:var(--text-secondary);
+      margin-top:.5rem;
+      letter-spacing:.5px;
+    }
+    @media (max-width:640px){
+      figure img { height:280px; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="source-container mx-auto px-4 py-8">
+    <!-- 顶部返回按钮（样式照搬 legal.html） -->
+    <a href="/" class="inline-block mb-6 px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition" title="返回主页">
+      ← 返回主页
+    </a>
+
+    <h1 class="text-2xl font-bold mb-6 text-blue-600">数据来源与测试环境说明</h1>
+
+    <img src="/static/imgs/main_eqp.jpg" alt="测试装置整体" class="hero-img">
+
+    <p>↑风量测试装置如上图所示↑</p>
+    <p>风管在风扇的进气侧，长度（不算整流罩）为 1 m，外径 120 mm；内径 114 mm。风速探头为 Testo405i 热敏式风速仪。</p>
+    <p>测试时风扇连接 PWM 调速器对风扇进行调速，待转速稳定后用风速探头采集 20 秒取平均值，最后根据风管内径转换为风量。</p>
+
+    <h2 class="text-xl font-semibold mt-10 mb-4 text-blue-700">常见问答（Q&A）</h2>
+    <p><strong>Q: 为什么风管在风扇进气侧？</strong><br>
+       A: 经前期测试发现，风扇出气侧有较大的旋流和乱流，导致测试数据不稳定，如果增加整流格栅又会增加风阻。而进气侧气流受风扇旋流影响小得多，配合喇叭形整流口流场更加均匀稳定，因此选择在进气侧进行测试。</p>
+    <br>
+    <p><strong>Q: 风管壁附近是否有低速附面层气流？</strong><br>
+       A: 在未安装喇叭形进气口的时候能观察到管道壁附近不到 1 cm 处的气流速度相对中心处有约 10% 的差距，但无法确定是附面层气流，更有可能是入口无整流导致的乱流，安装喇叭口之后这个现象几乎完全消失。</p>
+    <br>
+    <p><strong>Q: 为什么有些型号的空载数据和官方标称不一样？</strong><br>
+       A: 不同厂家可能采用了不同的测试标准和环境，因此导致了数据的差异。而且我们的测试设备和环境没有那么专业，所以空载风量数值以官方数据为准，我们的测试结果仅供参考。</p>
+
+    <h2 class="text-xl font-semibold mt-12 mb-4 text-blue-700">不同测试负载展示</h2>
+    <p>以下为当前测试中使用的部分典型负载（阻力件）外观：</p>
+
+    <div class="flex flex-wrap gap-8 items-start">
+      <figure>
+        <img src="/static/imgs/radiator-27mm.jpg" alt="冷排(厚度27mm)">
+        <figcaption>冷排（厚度 27mm）</figcaption>
+      </figure>
+      <figure>
+        <img src="/static/imgs/perforated-plate-40pct.jpg" alt="多孔板(40%穿孔率)">
+        <figcaption>多孔板（40% 穿孔率）</figcaption>
+      </figure>
+      <figure>
+        <img src="/static/imgs/nylon-mesh-65pct.jpg" alt="尼龙网(65%通风率)">
+        <figcaption>尼龙网（65% 通风率）</figcaption>
+      </figure>
+    </div>
+
+    <h2 class="text-xl font-semibold mt-12 mb-4 text-blue-700">说明</h2>
+    <p>本页面所有图片及文字说明来自实际测试及记录。由于设备与环境并非标准实验室条件，结果适合作为相对对比参考，不作为严格标定依据。</p>
+
+    <!-- 底部返回按钮（同样式） -->
+    <div class="mt-12">
+      <a href="/" class="inline-block px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition" title="返回主页">
+        ← 返回主页
+      </a>
+    </div>
+
+    <footer class="text-center text-xs py-8 opacity-70">
+      © {{ current_year or 2025 }} 风扇库
+    </footer>
+  </div>
+</body>
+</html>
