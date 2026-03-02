@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>数据来源与说明 - 风扇库</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+  <!-- 主题同步（与主页 / legal.html 一致） -->
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fancool.css') }}">
+  <style>
+    /* 比 legal.html 更宽一些 */
+    .source-container {
+      max-width: 1160px; 
+    }
+    .hero-img {
+      width:100%;
+      max-width:1100px;
+      display:block;
+      margin:0 auto 1.2rem;
+      border-radius:14px;
+      box-shadow:0 6px 24px -8px rgba(0,0,0,.18);
+      background:#fff;
+    }
+    [data-theme="dark"] .hero-img { background:#1f2937; }
+    figure {
+      margin:2rem 0 1.2rem;
+      text-align:center;
+    }
+    figure img {
+      max-width:360px;
+      width:100%;
+      height:360px;
+      object-fit:contain;
+      background:#fff;
+      border:1px solid var(--border-color);
+      border-radius:14px;
+      padding:6px;
+      box-shadow:0 4px 18px -8px rgba(0,0,0,.15);
+    }
+    [data-theme="dark"] figure img { background:#111827; }
+    figure figcaption {
+      font-size:.75rem;
+      color:var(--text-secondary);
+      margin-top:.5rem;
+      letter-spacing:.5px;
+    }
+    @media (max-width:640px){
+      figure img { height:280px; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="source-container mx-auto px-4 py-8">
+    <!-- 顶部返回按钮（样式照搬 legal.html） -->
+    <a href="/" class="inline-block mb-6 px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition" title="返回主页">
+      ← 返回主页
+    </a>
+
+    <h1 class="text-2xl font-bold mb-6 text-blue-600">数据来源与测试环境说明</h1>
+
+    <img src="/static/imgs/airflow_test_eqp.jpg" alt="风量测试装置" class="hero-img">
+    <p>↑风量测量装置如上图所示↑</p>
+    <p>风洞设计参考amca-210-25 figure 16构型，稍有改动。风扇进风侧连接风洞出风口。</p>
+    <p>测试时使用波形发生器发出指定占空比的方波对风扇进行调速，使用示波器连接风扇测速线测量风扇转速，使用Testo425热敏式风速仪测量风速并通过计算转换成风量（标定时采用径向多点法测量风速并用幂律拟合+积分得到标定风量）。</p>
+    <br>
+    <br>
+    
+    <img src="/static/imgs/sound_test_environment.jpg" alt="声学测试环境" class="hero-img">
+    <p>↑噪音测试环境如上图所示↑</p>
+    <p>风扇固定于隔振平台支架上。风扇出风侧前方>60cm净空，进风侧前方>40cm净空。</p>
+    <p>测试环境本底噪音低于8dBA，使用爱华AWA5662专业声级计采集噪音数据，声级探头固定于风扇上方距离风扇外框顶部30cm处。</p>
+    <br>
+
+    <h2 class="text-xl font-semibold mt-10 mb-4 text-blue-700">常见问答（Q&A）</h2>
+    <p><strong>Q: 为什么声级探头平行于风扇旋转面而不是常见的正对风扇旋转面？</strong><br>
+       A: 考虑到风扇在不同工况下安装方向不同，可能进风侧朝外也可能出风侧朝外，且负载也可能安装在风扇任意侧。把声级探头固定在平行于风扇旋转面的方向上可以兼顾两侧的收音以适应各种工况。需要注意的是这个方案下收音效果和传统正对旋转面的方案会有些许差异。</p>
+    <br>
+    <p><strong>Q: 为什么有些型号的空载数据和官方标称不一样？</strong><br>
+       A: 不同厂家可能采用了不同的测试标准和环境，因此导致了数据的差异。并且我们的风洞构型会有少许负压，对负压敏感的风扇测量结果会稍微偏低。空载风量数值以官方数据为准，我们的测试结果仅供参考。</p>
+    <br>
+
+    <h2 class="text-xl font-semibold mt-12 mb-4 text-blue-700">不同测试负载展示</h2>
+    <p>以下为当前测试中使用的部分典型负载（阻力件）外观：</p>
+
+    <div class="flex flex-wrap gap-8 items-start">
+      <figure>
+        <img src="/static/imgs/radiator-27mm.jpg" alt="冷排(厚度27mm)">
+        <figcaption>冷排（厚度 27mm）</figcaption>
+      </figure>
+      <figure>
+        <img src="/static/imgs/air_cooler.jpg" alt="风冷塔(厚度70mm)">
+        <figcaption>风冷塔(厚度 70mm)</figcaption>
+      </figure>
+      <figure>
+        <img src="/static/imgs/nylon-mesh-65pct.jpg" alt="尼龙网(65%通风率)">
+        <figcaption>尼龙网（65% 通风率）</figcaption>
+      </figure>
+    </div>
+
+    <h2 class="text-xl font-semibold mt-12 mb-4 text-blue-700">说明</h2>
+    <p>本页面所有图片及文字说明来自实际测试及记录。由于设备与环境并非标准实验室条件，结果适合作为相对对比参考，不作为严格标定依据。</p>
+
+    <!-- 底部返回按钮（同样式） -->
+    <div class="mt-12">
+      <a href="/" class="inline-block px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition" title="返回主页">
+        ← 返回主页
+      </a>
+    </div>
+
+    <footer class="text-center text-xs py-8 opacity-70">
+      © {{ current_year or 2026 }} 风扇库
+    </footer>
+  </div>
+</body>
+</html>

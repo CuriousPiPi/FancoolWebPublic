@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+    /* 可在此修改全局最大曲线条目数（默认 8） */
+    window.APP_CONFIG = window.APP_CONFIG || {};
+    window.APP_CONFIG.maxItems = 8;
+  </script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>风扇库</title>
+
+  <link rel="preconnect" href="https://cdn.bootcdn.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.2/css/fontawesome.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.2/css/solid.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fancool.css', v=11) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/chart-renderer.css', v=1) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/right-panel.css', v=7) }}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="announcementBar" class="fc-announce hidden">
+    <div class="fc-announce-inner">
+      <span id="fcAnnounceText" class="fc-announce-text"></span>
+      <span class="fc-announce-gradient"></span>
+    </div>
+    <button id="fcAnnounceClose" class="fc-announce-close" type="button">&times;</button>
+  </div>
+  <div id="toastContainer"></div>
+
+  <!-- 左上角浮动侧栏按钮 -->
+  <button id="sidebar-toggle" class="sidebar-fab-toggle" aria-label="展开侧栏" title="展开/收起侧栏">
+    <span class="icon-sidebar" aria-hidden="true"></span>
+  </button>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="collapsed">
+    <div id="sidebar-resizer"></div>
+    <div id="sidebar-header">
+      <h1 class="text-xl font-bold text-center">数据管理</h1>
+    </div>
+
+    <!-- 上半区 -->
+    <div id="top-panel" class="fc-sidebar-panel">
+      <div class="fc-sidebar-panel__content">
+        <nav class="fc-tabs" data-tab-group="sidebar-top">
+          <div class="fc-tabs__item active" data-tab="recent-removed">最近移除</div>
+          <div class="fc-tabs__item" data-tab="recent-liked">最近点赞</div>
+        </nav>
+
+        <div class="fc-tab-container" id="sidebar-top-container">
+          <div class="fc-tab-wrapper" id="sidebar-top-wrapper" aria-live="polite">
+            <!-- 最近移除 -->
+            <div class="fc-tab-pane" id="recent-removed-pane">
+              <div id="recentlyRemovedList" class="space-y-2">
+                <p class="text-gray-500 text-center py-6 empty-removed">暂无最近移除的风扇</p>
+              </div>
+            </div>
+            <!-- 最近点赞 -->
+            <div class="fc-tab-pane" id="recent-liked-pane">
+              <div id="recentLikesList" class="space-y-2">
+                <p class="text-gray-500 text-center py-6">首次打开该页签时加载...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="sidebar-splitter">
+      <svg class="splitter-rails" width="100%" height="12px" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
+        <line id="sr-top-left"  x1="0" y1="0.5"  x2="0" y2="0.5"  stroke="var(--border-color)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+        <line id="sr-top-right" x1="0" y1="0.5"  x2="0" y2="0.5"  stroke="var(--border-color)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+        <line id="sr-bot-left"  x1="0" y1="11.5" x2="0" y2="11.5" stroke="var(--border-color)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+        <line id="sr-bot-right" x1="0" y1="11.5" x2="0" y2="11.5" stroke="var(--border-color)" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+      </svg>
+      <button id="sidebar-splitter-handle"
+              class="fc-splitter-handle"
+              type="button"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="拖拽调整上下面板高度"></button>
+    </div>
+
+    <!-- 下半区 -->
+    <div id="bottom-panel" class="fc-sidebar-panel">
+      <div class="fc-sidebar-panel__content">
+        <h2 class="text-lg font-semibold mb-3">
+          已添加的数据 (<span id="selectedCount">0</span>/<span id="maxItemsLabel"></span>)
+        </h2>
+        <div id="selectedFansList" class="space-y-2">
+          <!-- 初始为空，JS 构建 -->
+        </div>
+      </div>
+      <div class="fc-sticky-footer text-center hidden" id="clearAllContainer">
+        <button id="clearAllBtn" class="w-full fc-btn fc-btn--danger" style="font-size: 16px;">
+          移除所有
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <main id="main-content">
+    <div class="container mx-auto px-4 pt-4 pb-4">
+      <header class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-blue-600 mb-2">风扇库</h1>
+        <p class="text-gray-600">一个风扇性能可视化对比网站，选择参数并添加到图表。</p>
+      </header>
+
+      <div class="fc-info-btn-wrap">
+        <a href="/source-info" data-track-id="link_source_info"
+           class="fc-info-btn bg-white text-gray-700 hover:text-blue-600 p-2 rounded-full shadow-md border border-gray-200 flex items-center justify-center"
+           title="数据来源与说明">
+          <i class="fa-solid fa-circle-info text-lg"></i>
+        </a>
+      </div>
+      <div class="fc-theme-toggle" id="themeToggle" title="切换深浅色">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </div>
+
+      <div id="main-panels" class="flex flex-col lg:flex-row gap-6 mb-6">
+        <!-- 左侧添加 / 搜索区域 -->
+        <div class="bg-white rounded-xl shadow-md p-6 lg:w-1/3" style="height: 600px;">
+          <nav class="fc-tabs" data-tab-group="left-panel">
+            <div class="fc-tabs__item active" data-tab="add-by-model">按型号添加</div>
+            <div class="fc-tabs__item" data-tab="filter-by-scenario">按工况筛选</div>
+          </nav>
+          <div class="fc-tab-container" id="left-panel-container">
+            <div class="fc-tab-wrapper" id="left-panel-wrapper">
+
+              <!-- 按型号添加 -->
+              <div class="fc-tab-pane" id="add-by-model-pane">
+                <form id="fanForm" class="fc-form-grid">
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">输入型号直接搜索</label>
+                    <div class="relative">
+                      <input type="text" id="modelSearchInput" class="fc-field w-full border-gray-300" placeholder="输入型号关键字...">
+                      <div id="searchSuggestions" class="absolute z-10 hidden bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto w-full mt-1"></div>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">品牌</label>
+                    <select id="brandSelect" class="fc-field w-full border-gray-300">
+                      <option value="">-- 选择品牌 --</option>
+                      {% for brand in brands %}
+                        <option value="{{ brand }}">{{ brand }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">型号</label>
+                    <select id="modelSelect" class="fc-field w-full border-gray-300" disabled>
+                      <option value="">-- 选择型号 --</option>
+                    </select>
+                    <div id="modelLoading" class="text-sm text-gray-500 mt-1 hidden">加载中...</div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">测试工况</label>
+                    <!-- 多选容器：固定高度≈两行下拉，内部可滚动 -->
+                    <div id="conditionMulti"
+                      class="w-full border border-gray-300 rounded-md p-2 bg-white fc-condition-multi" >
+                      <!-- 级联占位提示（默认显示） -->
+                      <div id="condPlaceholder" class="text-sm text-gray-500">-- 请先选择品牌 --</div>
+                      <!-- 复选框列表（加载完成后显示） -->
+                      <div id="condList" class="space-y-1 hidden"></div>
+                      <div id="conditionLoading" class="text-sm text-gray-500 hidden">加载中...</div>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <button type="submit" class="w-full fc-btn fc-btn--success" style="font-size: 16px;">添加至图表</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- 按工况筛选 -->
+              <div class="fc-tab-pane" id="filter-by-scenario-pane">
+                <form id="searchForm" class="fc-form-grid">
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">测试工况</label>
+                    <select name="condition_name" id="conditionFilterSelect" class="fc-field w-full border-gray-300">
+                      <option value="">-- 选择测试工况 --</option>
+                      {% for cond in all_conditions %}
+                        <option value="{{ cond }}">{{ cond }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-sm font-medium">尺寸(mm)</label>
+                        <select name="size_filter" class="fc-field w-full border-gray-300">
+                          {% for size in size_options %}
+                            <option value="{{ size }}">{{ size }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium">RGB灯光</label>
+                        <select name="rgb_light" id="rgbLightSelect" class="fc-field w-full border-gray-300">
+                          <option value="不限">不限</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">风扇厚度(mm)</label>
+                    <div class="flex items-center gap-3">
+                      <input type="number" name="thickness_min" value="1" min="1" max="99" class="fc-field w-1/2 border-gray-300" required>
+                      <span class="text-gray-600">-</span>
+                      <input type="number" name="thickness_max" value="50" min="1" max="99" class="fc-field w-1/2 border-gray-300" required>
+                    </div>
+                  </div>
+                  
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">参考价格(元)</label>
+                    <div class="flex items-center gap-3">
+                      <input type="number"
+                             name="price_min"
+                             value="0"
+                             min="0"
+                             max="999"
+                             step="1"
+                             class="fc-field w-1/2 border-gray-300"
+                             required>
+                      <span class="text-gray-600">-</span>
+                      <input type="number"
+                             name="price_max"
+                             value="999"
+                             min="0"
+                             max="999"
+                             step="1"
+                             class="fc-field w-1/2 border-gray-300"
+                             required>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-sm font-medium flex items-center">
+                          限制条件
+                          <button
+                            type="button"
+                            class="ml-1 cursor-help text-gray-400 hover:text-gray-600 focus:outline-none"
+                            data-tooltip="限制条件指在设定的转速或噪音限制下取最佳测试成绩。如：限制转速3000RPM，则意为取3000及以下转速最高风量。选择“无(全速)”将在搜索结果中显示风扇全速运行时的风量数据。"
+                            aria-label="限制条件说明">
+                            <i class="fa-solid fa-circle-info text-xs"></i>
+                          </button>
+                        </label>
+                        <select name="sort_by" id="sortBySelect" class="fc-field w-full border-gray-300">
+                          <option value="none" selected>无(全速)</option>
+                          <option value="rpm">转速(RPM)</option>
+                          <option value="noise">噪音(dB)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium">限制值</label>
+                        <input type="number" inputmode="numeric" step="1" min="1" max="9999"
+                               name="sort_value" id="sortValueInput"
+                               class="fc-field w-full border-gray-300" disabled>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <button type="submit" class="w-full fc-btn" style="font-size: 16px;">搜索风扇</button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧排行榜 / 搜索结果 -->
+        <div class="bg-white rounded-xl shadow-md p-6 lg:w-2/3 fc-right-card relative">
+          <div id="query-count-display"
+               style="position: absolute; top: 0; right: 0; z-index: 10;
+                      font-size: 12px; color: #666; background: rgba(255,255,255,0);
+                      padding: 2px 8px;">
+            已执行查询<span id="query-count">0</span>次
+          </div>
+          <nav class="fc-tabs with-subseg" fc-tabs--with-subseg data-tab-group="right-panel">
+            <div class="fc-tabs__primary-group">
+              <div class="fc-tabs__item active" data-tab="top-queries">近期热门</div>
+              <div class="fc-tabs__item" data-tab="search-results">搜索结果</div>
+              <div class="fc-tabs__item" data-tab="recent-updates">近期更新</div>
+            </div>
+            <div class="flex-1"></div>
+            <div class="fc-tabs__subseg" id="rightSubsegContainer"></div>
+          </nav>
+          <div class="fc-tab-container" id="right-panel-container">
+            <div class="fc-tab-wrapper" id="right-panel-wrapper">
+              <!-- 热门查询 -->
+              <div class="fc-tab-pane" id="top-queries-pane">
+                <div class="fc-seg" data-active="queries-panel" role="tablist" aria-label="榜单切换">
+                  <button class="fc-seg__btn is-active" data-target="queries-panel" role="tab" aria-selected="true" aria-controls="queries-panel">查询榜</button>
+                  <button class="fc-seg__btn" data-target="likes-panel" role="tab" aria-selected="false" aria-controls="likes-panel">好评榜</button>
+                  <span class="fc-seg__thumb"></span>
+                </div>
+
+                <div class="fc-rank-box">
+                  <div class="fc-rank-panel active" id="queries-panel" role="tabpanel" aria-label="查询榜">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table">
+                        <thead>
+                        <tr>
+                          <th class="fc-rank-header">排名</th>
+                          <th>品牌</th>
+                          <th>型号</th>
+                          <th>尺寸</th>
+                          <th>RGB灯光</th>
+                          <th>参考价</th>
+                          <th>热门工况</th>
+                          <th>查询数</th>
+                          <th class="add-header">添加</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for q in top_queries %}
+                          <tr class="hover:bg-gray-50 fc-qrow"
+                              data-model-id="{{ q.model_id }}"
+                              data-brand="{{ q.brand_name_zh }}"
+                              data-model="{{ q.model_name }}"
+                              data-conditions='{{ q.conditions|tojson }}'>
+                            <td class="fc-rank-cell">
+                              {% if q.model_rank == 1 %}
+                                <i class="fa-solid fa-medal gold text-2xl"></i>
+                              {% elif q.model_rank == 2 %}
+                                <i class="fa-solid fa-medal silver text-2xl"></i>
+                              {% elif q.model_rank == 3 %}
+                                <i class="fa-solid fa-medal bronze text-2xl"></i>
+                              {% else %}
+                                <span class="font-medium">{{ q.model_rank }}</span>
+                              {% endif %}
+                            </td>
+                            <td class="nowrap fc-marquee-cell"><span class="fc-marquee-inner">{{ q.brand_name_zh }}</span></td>
+                            <td class="nowrap fc-marquee-cell"><span class="fc-marquee-inner">{{ q.model_name }} ({{ q.max_speed }} RPM)</span></td>
+                            <td class="nowrap fc-marquee-cell"><span class="fc-marquee-inner">{{ q.size }}x{{ q.thickness }}</span></td>
+                            <td class="nowrap">{{ q.rgb_light if q.rgb_light else '—' }}</td>
+                            <td class="nowrap fc-marquee-cell">
+                              <span class="fc-marquee-inner">{{ q.reference_price if q.reference_price > 0 else '-' }}</span>
+                            </td>
+                            <td class="nowrap fc-marquee-cell">
+                              <button class="fc-row-expander fc-expand-toggle"
+                                      type="button"
+                                      aria-expanded="false"
+                                      data-tooltip="展开/收起该型号的所有工况">
+                                <i class="fa-solid fa-chevron-right"></i>
+                              </button>
+                              <span class="fc-marquee-inner" data-role="top-cond">
+                                {{ q.top_condition.condition_name_zh if q.top_condition else '-' }}
+                              </span>
+                            </td>
+                            <td class="text-blue-600 font-medium">{{ q.total_count }}</td>
+                            <td>
+                              {% if q.top_condition %}
+                              <button class="fc-btn-icon-add js-ranking-add fc-tooltip-target"
+                                      data-tooltip="添加到图表"
+                                      data-add-type="ranking"
+                                      data-log-source="top_query"
+                                      data-brand="{{ q.brand_name_zh }}"
+                                      data-model="{{ q.model_name }}"
+                                      data-condition="{{ q.top_condition.condition_name_zh }}"
+                                      data-model-id="{{ q.model_id }}"
+                                      data-condition-id="{{ q.top_condition.condition_id }}">
+                                <i class="fa-solid fa-plus"></i>
+                              </button>
+                              {% else %}
+                              <button class="fc-btn-icon-add fc-tooltip-target" data-tooltip="无可添加工况" disabled>
+                                <i class="fa-solid fa-plus"></i>
+                              </button>
+                              {% endif %}
+                            </td>
+                          </tr>
+                        {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="fc-rank-panel" id="likes-panel" role="tabpanel" aria-label="好评榜">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table" id="ratingRankTable">
+                        <thead>
+                        <tr>
+                          <th class="fc-rank-header">排名</th>
+                          <th>品牌</th>
+                          <th>型号</th>
+                          <th>尺寸</th>
+                          <th>RGB灯光</th>
+                          <th>参考价</th>
+                          <th>热门工况</th>
+                          <th>好评数</th>
+                          <th class="add-header">添加</th>
+                        </tr>
+                      </thead>
+                        <tbody id="ratingRankTbody">
+                          {% for r in top_ratings %}
+                            <tr class="hover:bg-gray-50 fc-like-row"
+                                data-model-id="{{ r.model_id }}"
+                                data-brand="{{ r.brand_name_zh }}"
+                                data-model="{{ r.model_name }}"
+                                data-conditions='{{ r.conditions|tojson }}'>
+                              <td class="fc-rank-cell">
+                                {% if r.model_rank == 1 %}
+                                  <i class="fa-solid fa-medal gold text-2xl"></i>
+                                {% elif r.model_rank == 2 %}
+                                  <i class="fa-solid fa-medal silver text-2xl"></i>
+                                {% elif r.model_rank == 3 %}
+                                  <i class="fa-solid fa-medal bronze text-2xl"></i>
+                                {% else %}
+                                  <span class="font-medium">{{ r.model_rank }}</span>
+                                {% endif %}
+                              </td>
+                              <td class="nowrap fc-marquee-cell"><span class="fc-marquee-inner">{{ r.brand_name_zh }}</span></td>
+                              <td class="nowrap fc-marquee-cell"><span class="fc-marquee-inner">{{ r.model_name }} ({{ r.max_speed }} RPM)</span></td>
+                              <td class="nowrap fc-marquee-cell"><span class="fc-marquee-inner">{{ r.size }}x{{ r.thickness }}</span></td>
+                              <td class="nowrap">{{ r.rgb_light if r.rgb_light else '—' }}</td>
+                              <td class="nowrap fc-marquee-cell"><span class="fc-marquee-inner">{{ r.reference_price if r.reference_price > 0 else '-' }}</span></td>
+                              <td class="nowrap fc-marquee-cell">
+                                <button class="fc-row-expander fc-expand-toggle"
+                                        type="button"
+                                        aria-expanded="false"
+                                        data-tooltip="展开/收起该型号的所有工况">
+                                  <i class="fa-solid fa-chevron-right"></i>
+                                </button>
+                                <span class="fc-marquee-inner" data-role="top-cond">
+                                  {{ r.top_condition.condition_name_zh if r.top_condition else '-' }}
+                                </span>
+                              </td>
+                              <td class="text-blue-600 font-medium">{{ r.total_count }}</td>
+                              <td>
+                                {% if r.top_condition %}
+                                <button class="fc-btn-icon-add js-rating-add fc-tooltip-target"
+                                        data-tooltip="添加到图表"
+                                        data-add-type="rating"
+                                        data-log-source="top_rating"
+                                        data-brand="{{ r.brand_name_zh }}"
+                                        data-model="{{ r.model_name }}"
+                                        data-condition="{{ r.top_condition.condition_name_zh }}"
+                                        data-model-id="{{ r.model_id }}"
+                                        data-condition-id="{{ r.top_condition.condition_id }}">
+                                  <i class="fa-solid fa-plus"></i>
+                                </button>
+                                {% else %}
+                                <button class="fc-btn-icon-add fc-tooltip-target" data-tooltip="无可添加工况" disabled>
+                                  <i class="fa-solid fa-plus"></i>
+                                </button>
+                                {% endif %}
+                              </td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 搜索结果 -->
+              <div class="fc-tab-pane" id="search-results-pane">
+                <div class="fc-seg" data-active="search-airflow-panel" role="tablist" aria-label="排序视图切换">
+                  <button class="fc-seg__btn is-active" data-target="search-airflow-panel" role="tab" aria-selected="true" aria-controls="search-airflow-panel">风量优先</button>
+                  <button class="fc-seg__btn" data-target="search-likes-panel" role="tab" aria-selected="false" aria-controls="search-likes-panel">好评优先</button>
+                  <span class="fc-seg__thumb"></span>
+                </div>
+
+                <div class="fc-rank-box">
+                  <div id="searchConditionLabel" class="fc-condition-label"></div>
+
+                  <div class="fc-rank-panel active" id="search-airflow-panel" role="tabpanel">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table">
+                        <thead>
+                        <tr>
+                          <th>品牌</th>
+                          <th>型号</th>
+                          <th>尺寸</th>
+                          <th>RGB灯光</th>
+                          <th>参考价</th>
+                          <th>工况</th>
+                          <th class="nowrap" id="searchXHeaderAir">转速</th>
+                          <th>风量(CFM)</th>
+                          <th>工况好评数</th>
+                          <th class="add-header">添加</th>
+                        </tr>
+                        </thead>
+                        <tbody id="searchAirflowTbody">
+                          <tr><td colspan="10" class="text-center text-gray-500 py-8" style="font-size: 16px;">使用按工况筛选进行搜索</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="fc-rank-panel" id="search-likes-panel" role="tabpanel">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table">
+                        <thead>
+                        <tr>
+                          <th>品牌</th>
+                          <th>型号</th>
+                          <th>尺寸</th>
+                          <th>RGB灯光</th>
+                          <th>参考价</th>
+                          <th>工况</th>
+                          <th class="nowrap" id="searchXHeaderLikes">转速</th>
+                          <th>风量(CFM)</th>
+                          <th>工况好评数</th>
+                          <th class="add-header">添加</th>
+                        </tr>
+                        </thead>
+                        <tbody id="searchLikesTbody">
+                          <tr><td colspan="10" class="text-center text-gray-500 py-8" style="font-size: 16px;">使用按工况筛选进行搜索</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="fc-tab-pane" id="recent-updates-pane">
+                <div class="fc-rank-box">
+                  <div class="fc-rank-panel active" id="updates-panel" role="tabpanel" aria-label="近期更新">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table" id="recentUpdatesTable">
+                        <thead>
+                        <tr>
+                          <th>品牌</th>
+                          <th>型号</th>
+                          <th>尺寸</th>
+                          <th>RGB灯光</th>
+                          <th>工况</th>
+                          <th>更新日期</th>
+                          <th>更新描述</th>
+                          <th class="add-header">添加</th>
+                        </tr>
+                        </thead>
+                        <tbody id="recentUpdatesTbody">
+                          <tr><td colspan="7" class="text-center text-gray-500 py-6">首次点击“近期更新”加载...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图表 -->
+      <div class="fc-chart-container bg-white rounded-xl shadow-md p-4 relative" id="chart-settings">
+        <div class="chart-stack">
+          <div id="chartRoot" style="width:100%;height:600px;position:relative;overflow:hidden;"></div>
+          <!-- 去除剪裁层：只保留 Host + 内层 -->
+          <div id="spectrumHost">
+            <div class="spectrum-inner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 底部 Footer：无背景色，文字跟随主题 -->
+  <footer class="fc-site-footer">
+    <div class="container mx-auto px-4 py-2 text-sm flex flex-col md:flex-row gap-2 md:gap-4 md:items-center justify-between">
+      <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
+        <span>© {{ current_year or 2025 }} 风扇库</span>
+        <a 
+          href="https://beian.mps.gov.cn/#/query/webSearch?code=31011402021508" 
+          rel="noreferrer" 
+          target="_blank"
+          style="display: inline-flex; align-items: center; "
+        >
+          <img 
+            src="{{ url_for('static', filename='imgs/beian.png') }}" 
+            alt="备案图标" 
+            style="width: 16px; height: 16px; margin-right: 5px; "
+          > 
+          沪公网安备31011402021508号
+        </a>
+        <span>沪ICP备2025145529号-1</span>
+        <span>交流及反馈QQ群：1070155380</span>
+        <a href="https://github.com/CuriousPiPi/FancoolWebPublic.git" data-track-id="link_github_open_source" class="underline hover:text-blue-600">GitHub用户端代码开源</a>
+      </div>
+      <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+        <a href="/legal" class="underline hover:text-blue-600">版权及免责声明</a>
+      </div>
+    </div>
+  </footer>
+  </main>
+
+  <script src="{{ url_for('static', filename='vendor/echarts/5.4.2/echarts.min.js') }}"></script>
+  <script src="{{ asset_url('app.js') }}"></script>
+  
+</body>
+</html>

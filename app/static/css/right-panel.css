@@ -1,0 +1,534 @@
+/* =========================================================
+   Right Card (右侧主容器) 专用样式
+   依赖：先加载 fancool.css，再加载本文件
+   作用域：仅限 .fc-right-card 及其子元素
+   ========================================================= */
+
+:root {
+  --rank-row-h: 43px;
+/* 子行公共变量 */
+  --subrow-h: var(--rank-row-h);
+  /* 旧结构回退用的视觉缩进（兜底） */
+  --subrow-indent: clamp(240px, 32vw, 480px);
+  --row-mask-extra: 240px;
+}
+
+/* 1) 右侧主容器定高 */
+.fc-right-card {
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  min-height: 0;
+  min-width: 0;
+  --hot-col-min-w: 0px;
+  --hot-col-max-frac: 0.38;
+}
+
+@media (max-width: 600px) {
+  .fc-right-card {height: clamp(500px, 80vh, 600px);}
+}
+
+/* 2) 右侧页签排布 */
+.fc-right-card > nav.fc-tabs { margin-bottom: 6px; }
+
+.fc-tabs[data-tab-group="right-panel"] {
+  flex-wrap: wrap;
+}
+.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group .fc-tabs__item {
+  flex: 0 0 auto !important;
+}
+
+/* 窄容器（rp-narrow）布局 */
+.fc-right-card.rp-narrow > nav.fc-tabs {
+  flex-wrap: wrap;
+  row-gap: 8px;
+  column-gap: 10px;
+  align-items: flex-start;
+}
+.fc-right-card.rp-narrow > nav.fc-tabs .flex-1 { display: none; }
+.fc-right-card.rp-narrow > nav.fc-tabs .fc-tabs__item {
+  flex: 1 1 calc(50% - 10px);
+  text-align: center;
+  padding: .55rem .8rem;
+}
+.fc-right-card.rp-narrow .fc-tabs__subseg {
+  order:3;
+  flex:1 1 100%;
+  width:100%;
+  display:flex;
+  justify-content:center;
+  margin-top:2px;
+}
+.fc-right-card.rp-narrow .fc-rank-box { padding-top:0; }
+.fc-right-card.rp-narrow > nav.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group {
+  flex: 1 1 100%;
+  width: 100%;
+  justify-content: space-between;
+}
+.fc-right-card.rp-narrow > nav.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group .fc-tabs__item {
+  flex: 1 1 0 !important;
+  text-align: center;
+}
+
+/* 屏幕宽度 ≤600px 时的布局 */
+@media (max-width: 600px) {
+  .fc-right-card > nav.fc-tabs { margin-bottom: 4px; }
+  .fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group {
+    flex: 1 1 100%;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group .fc-tabs__item {
+    flex: 1 1 0 !important;
+    text-align: center;
+  }
+}
+
+/* 3) 内容区 Flex 高度链 */
+.fc-right-card .fc-tab-container {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.fc-right-card .fc-tab-wrapper,
+.fc-right-card .fc-tab-pane {
+  height: 100%;
+}
+.fc-right-card .fc-tab-pane {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.fc-right-card .fc-rank-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 右侧排行面板：进入/离开动画 */
+.fc-right-card .fc-rank-panel {
+  display: none;
+}
+
+.fc-right-card .fc-rank-panel.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  animation: fadePanelIn 1s ease;
+}
+
+/* 旧面板淡出时同时具备 active + is-leaving */
+.fc-right-card .fc-rank-panel.active.is-leaving {
+  position: absolute;
+  inset: 0;
+  /* 如果内部有滚动，可以按需设置 overflow: hidden; */
+  animation: fadePanelOut .25s ease forwards;
+}
+
+/* 淡入：从下方向上轻微浮现 */
+@keyframes fadePanelIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 淡出：略微上移并变透明 */
+@keyframes fadePanelOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 4) 滚动层：仅右侧预留，避免显隐时错觉性右移 */
+.fc-right-card .fc-rank-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  max-height: none !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable ; /* 仅右侧预留 */
+}
+@supports not (scrollbar-gutter: stable) {
+  .fc-right-card .fc-rank-scroll { padding-right: var(--sbw); }
+}
+
+.fc-right-card .fc-rank-scroll::-webkit-scrollbar { width: 8px; }
+.fc-right-card .fc-rank-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+.fc-right-card .fc-rank-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+/* === 仅右侧主容器：快捷按钮圆形遮罩（由 JS 决定是否启用） === */
+
+/* 尺寸 / 视觉变量：只用于右侧卡 */
+.fc-right-card {
+  --quick-add-size-narrow: 26px;
+  --quick-add-bg-narrow: var(--bg-secondary);
+  --quick-add-shadow-narrow: 0 3px 8px rgba(0, 0, 0, 0.388), 0 0 0 0 rgba(0, 0, 0, 0);
+  --quick-add-shadow-narrow-hover: 0 5px 14px rgba(0, 0, 0, 0.34), 0 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.fc-right-card .fc-rank-table { width:100%; border-collapse: separate; border-spacing:0; }
+.fc-right-card .fc-rank-table th,
+.fc-right-card .fc-rank-table td {
+  vertical-align:middle;
+  font-size:14px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding-left: 0;
+  padding-right: 20px;
+}
+
+.fc-rank-table th {
+  text-align:left;
+  font-weight:600;
+  letter-spacing:.5px;
+  padding: .6rem;
+}
+
+.fc-rank-cell, .fc-rank-table th.fc-rank-header { width:56px; text-align:center; }
+
+
+.fc-rank-table tr:hover { background:var(--hover-overlay); }
+[data-theme="dark"] .fc-rank-table tr:hover { background:var(--hover-overlay)!important; }
+
+.fc-rank-table .fa-medal.gold { color:var(--medal-gold)!important; }
+.fc-rank-table .fa-medal.silver { color:var(--medal-silver)!important; }
+.fc-rank-table .fa-medal.bronze { color:var(--medal-bronze)!important; }
+
+/* 当右侧卡上有 rp-compact-quick-btns 类时，右侧卡内的快捷按钮改为圆形遮罩样式 */
+.fc-right-card.rp-compact-quick-btns .fc-btn-icon-add {
+  width: var(--quick-add-size-narrow) !important;
+  height: var(--quick-add-size-narrow) !important;
+  padding: 0 !important;
+  background: var(--quick-add-bg-narrow) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 50% !important;
+  box-shadow: var(--quick-add-shadow-narrow) !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  position: relative;
+  transition: background .25s, box-shadow .25s, transform .2s;
+}
+[data-theme="dark"] .fc-right-card.rp-compact-quick-btns .fc-btn-icon-add {backdrop-filter: blur(2px);}
+
+/* 5) 表头/操作列与遮罩 */
+.fc-right-card .fc-rank-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--bg-secondary);
+  box-shadow: 0 2px 3px -1px var(--shadow-color);
+  font-size: 15px;
+}
+
+/* 通过 colgroup 控制第 7 列宽度（仍保留上限，作为兜底） */
+.fc-right-card .fc-rank-table colgroup col:nth-child(7) {
+  width: min(var(--hot-col-min-w, 0px), calc(var(--hot-col-max-frac, 0.38) * 100vw));
+  min-width: min(var(--hot-col-min-w, 0px), calc(var(--hot-col-max-frac, 0.38) * 100vw));
+}
+
+[data-theme="dark"] .fc-right-card .fc-rank-table thead th {
+  box-shadow: 0 2px 3px -1px var(--shadow-color);
+  backdrop-filter:saturate(120%) blur(8px);
+}
+
+.fc-right-card .fc-rank-table thead th:last-child {
+  top: 0;
+  z-index: 11;
+  box-shadow: 0 2px 3px -1px var(--shadow-color);
+}
+.fc-right-card .fc-rank-table th:last-child,
+.fc-right-card .fc-rank-table td:last-child {
+  text-align: center;
+  width: 60px;
+  position: sticky;
+  right: 0;
+  background: var(--bg-secondary);
+}
+.fc-right-card .fc-rank-table td:last-child {
+  padding: 0px;
+  background: linear-gradient(to left, transparent 30px, rgba(0,0,0,0) 50px);
+}
+
+.fc-right-card .fc-rank-table tbody > tr:not(.fc-subrow) > td {
+  /* 去掉额外垂直 padding，用固定高度控制 */
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  height: var(--rank-row-h);
+  box-sizing: border-box;
+}
+
+/* 保证单元格内内容垂直居中 */
+.fc-right-card .fc-rank-table tbody > tr:not(.fc-subrow) > td > * {
+  line-height: 1.2;
+}
+
+/* 徽章列：限制图标尺寸/行高，避免把整行顶高 */
+.fc-right-card .fc-rank-table .fa-medal {
+  font-size: 16px;
+  line-height: 1;    
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.fc-right-card .fc-rank-table th:nth-child(7),
+.fc-right-card .fc-rank-table td:nth-child(7) {
+  min-width: min(var(--hot-col-min-w, 0px), 52vw);
+}
+/* 参考价（第 6 列）数字右对齐 */
+.fc-right-card .fc-rank-table th:nth-child(6),
+.fc-right-card .fc-rank-table td:nth-child(6) {
+  text-align: right;
+}
+
+/* 查询次数 / 好评次数（第 8 列）数字右对齐 */
+.fc-right-card .fc-rank-table th:nth-child(8),
+.fc-right-card .fc-rank-table td:nth-child(8) {
+  text-align: right;
+}
+
+.fc-right-card .fc-rank-box { position: relative; }
+.fc-right-card .fc-rank-box::after {
+  content: "";
+  position: absolute;
+  top: 0; right: -2px; bottom: 0;
+  width: calc(var(--sbw) + 3px);
+  background: transparent;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* 响应式 ≤600px */
+@media (max-width:600px) {
+  .fc-tabs {
+    flex-wrap:wrap;
+    row-gap:8px;
+    column-gap:10px;
+    align-items:flex-start;
+  }
+  .fc-tabs .flex-1 { display:none; }
+  .fc-tabs .fc-tabs__item {
+    flex:1 1 calc(50% - 10px);
+    text-align:center;
+    padding:.55rem .8rem;
+  }
+  .fc-tabs__subseg {
+    order:3;
+    flex:1 1 100%;
+    width:100%;
+    display:flex;
+    justify-content:center;
+    margin-top:2px;
+  }
+  .fc-right-card > nav.fc-tabs { margin-bottom:4px; }
+  .fc-right-card .fc-rank-box { padding-top:0; }
+
+  .fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group {
+    flex: 1 1 100%;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group .fc-tabs__item {
+    flex: 1 1 0 !important;   /* 三项等分一行 */
+    text-align: center;
+  }
+}
+
+/* 6) 右侧主页签：横向滑动切换（Scroll Snap） */
+#right-panel-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+}
+#right-panel-container::-webkit-scrollbar { display: none; }
+
+#right-panel-wrapper {
+  display: flex;
+  width: auto;         /* 避免固定 200%，支持任意数量页签 */
+  min-width: 100%;
+  height: 100%;
+}
+
+#right-panel-wrapper .fc-tab-pane {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* ===== 查询榜展开 UI 与子行样式（保留展开按钮样式） ===== */
+.fc-row-expander {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  margin-right: 4px;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .fc-row-expander {background: var(--bg-secondary);}
+
+.fc-row-expander:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.fc-row-expander i { transition: transform .24s ease; }
+.fc-row-expander.is-open i,
+.fc-row-expander[aria-expanded="true"] i { transform: rotate(90deg); }
+
+/* 子行基础：固定行高由 .fc-subrow__row 控制 */
+.fc-subrow {
+  position: relative;     /* 参与堆叠 */
+  z-index: 1;             /* 子行在下层 */
+}
+.fc-subrow td {
+  background: none;
+  padding: 0;             /* 统一移除 padding，内部容器自控 */
+}
+.fc-subrow .fc-subrow__row {
+  height: var(--subrow-h);
+  display: flex; align-items: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 使用 colspan=6 的单元格作为锚点容器 */
+.fc-subrow td[colspan] .fc-subrow__row {
+  position: relative;
+  padding: 0; /* 关键：去掉这里的左 padding，避免与 anchor 重复偏移 */
+}
+/* 锚点：优先使用运行时测得的 --subrow-anchor-x，失败则退回 --subrow-indent */
+.fc-subrow td[colspan] .fc-subrow__indent {
+  position: absolute;
+  left: var(--subrow-anchor-x, var(--subrow-indent));
+  top: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  /* 不需要 gap，由小圆点改为绝对定位 */
+  gap: 0;
+}
+
+/* 风阻文案：仍然贴在锚点左侧，右对齐，超长向左延展 */
+.fc-subrow td[colspan] .fc-subrow__extra-left {
+  position: absolute;
+  right: 100%;
+  margin-right: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1;
+  opacity: .85;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 小圆点放到锚点左侧，不参与排版，避免把工况文字右推 */
+.fc-subrow td[colspan] .fc-subrow__dot {
+  position: absolute;
+  left: -14px;            /* 6px 点 + 8px 间距 */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--text-secondary);
+  opacity: .6;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,.12);
+}
+
+/* 倒数第二列（查询次数）右对齐：内部 flex 改为向右对齐 */
+.fc-subrow td:nth-last-child(2) {
+  text-align: right; /* 作用在 span 等内联元素上，兜底 */
+}
+.fc-subrow td:nth-last-child(2) .fc-subrow__row {
+  justify-content: flex-end;                     /* 从左对齐改为右对齐 */
+  padding-left: var(--subrow-count-pl, .75rem);  /* 保留左 padding，用来对齐列位置 */
+  padding-right: 0;                              /* 如有需要，也可以给点 padding-right */
+}
+/* 最后一列（操作列）居中 */
+.fc-subrow td:last-child .fc-subrow__row { justify-content: center; }
+
+/* 父行小过渡通用类：不指定初始 transform/opacity，由 JS 控制 */
+.fc-fade-slide {
+  transition: transform .2s ease, opacity .2s ease;
+  will-change: transform, opacity;
+}
+
+/* 动画中的“下方条目”抬高层级并用表格背景遮盖子行 */
+.fc-row-animating {
+  position: relative;
+  z-index: 3;
+
+  /* 顶层：容器半透明层（需用 image 层保证在最上） */
+  /* 中层：网页渐变（视口尺寸 + 运行时坐标对齐“对应那一块”） */
+  background-image:
+    linear-gradient(var(--bg-secondary), var(--bg-secondary)),
+    var(--dark-rand-gradient);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 100% 100%, 100vw 100vh;
+  background-position:
+    0 0,
+    calc(var(--row-vp-left, 0px) * -1) calc(var(--row-vp-top, 0px) * -1);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  isolation: isolate;
+}
+
+/* 为正在动画的父行增加“向下延伸”的增强遮罩 */
+.fc-row-animating::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: var(--row-mask-extra, 24px);
+  /* 与本体相同的双层背景：容器底色 + 深色随机渐变，并与视口对齐 */
+  background-image:
+    linear-gradient(var(--bg-secondary), var(--bg-secondary)),
+    var(--dark-rand-gradient);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 100% 100%, 100vw 100vh;
+  background-position:
+    0 0,
+    calc(var(--row-vp-left, 0px) * -1) calc(var(--row-vp-top, 0px) * -1);
+  pointer-events: none; /* 不拦截交互 */
+}
+
+/* 行内容在遮罩之上正常显示 */
+.fc-row-animating > td,
+.fc-row-animating > th {
+  position: relative;
+  z-index: 1;
+}
+
+.fc-col-clip { overflow: hidden !important; }
+
