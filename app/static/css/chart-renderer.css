@@ -1,0 +1,1637 @@
+:root{
+  /* Chart-specific accent colors (local overrides where needed) */
+  --accent:#2563eb;
+  --accent-weak:#93c5fd;
+  --ok:#16a34a;
+  --ok-pressed:#15803d;
+  --fit-btn-bg: var(--accent-weak); 
+  --fit-btn-fg: var(--text-primary);  
+
+  /* Shadow and hover variables removed - using fancool.css variables */
+  --fit-handle-w: 16px;
+  --fit-handle-h: 24px;
+  --fit-hitbox:   36px;
+  --fit-btn-min-h: 24px;
+  --fs-main-flex: 1;
+  --fs-spec-flex: 1;
+  --rail-slide-overshoot: 8px;
+
+  /* Bubble/tooltip backgrounds */
+  --bg-bubble:var(--bg-secondary);
+  --tooltip-bg:rgba(255,255,255,0.98);
+}
+
+[data-theme="dark"]{
+  /* Chart-specific dark theme overrides */
+  --accent:#60a5fa;
+  --accent-weak:#bfdbfe;
+  --fit-btn-bg: var(--accent-weak);
+  --fit-btn-fg: var(--bg-primary);
+  --bg-bubble:rgba(31,41,55,0);
+  --tooltip-bg:rgba(31,41,55,0.98);
+}
+
+/* 容器与主图高度规则 */
+
+/* ========================
+   Upper-row split layout
+   ======================== */
+
+/* Override: new layout uses column flex so upper-row + spectrum stack vertically */
+.fc-chart-container.chart-flex {
+  flex-direction: column !important;
+}
+
+.chart-upper-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: clamp(280px, 45dvh, 620px);
+}
+.is-narrow .chart-upper-row {
+  flex-direction: column;
+}
+
+/* Radar overview panel */
+.radar-overview-panel {
+  flex: 0 0 auto;
+  width: 33%;
+  min-width: 380px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  border-right: 1px solid var(--border-color);
+  transition: width 0.28s cubic-bezier(.22,.61,.36,1), min-width 0.28s;
+  overflow: hidden;
+  position: relative;
+}
+.radar-overview-panel.is-collapsed {
+  width: 28px !important;
+  min-width: 28px !important;
+  overflow: hidden;
+}
+.radar-overview-panel.is-collapsed .radar-overview-content {
+  display: none;
+}
+.is-narrow .radar-overview-panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  border-right: none;
+  border-bottom: 1px solid var(--border-color);
+  flex-direction: column;
+}
+.is-narrow .radar-overview-panel.is-collapsed {
+  width: 100% !important;
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+.radar-overview-toggle {
+  flex: 0 0 auto;
+  width: 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+  transition: color 0.15s;
+  writing-mode: initial;
+  user-select: none;
+}
+.radar-overview-toggle:hover { color: var(--text-primary); }
+.radar-overview-panel.is-collapsed .radar-overview-toggle { transform: scaleX(-1); }
+.is-narrow .radar-overview-toggle { width: auto; height: 28px; writing-mode: initial; transform: rotate(90deg); }
+.is-narrow .radar-overview-panel.is-collapsed .radar-overview-toggle { transform: rotate(-90deg); }
+
+.radar-overview-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px 4px 4px;
+}
+/* Title above the radar chart – same weight/size as main chart title */
+.radar-overview-title {
+  width: 100%;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 10px 8px 4px;
+  flex: 0 0 auto;
+}
+/* Subtle helper line below the section title */
+.radar-overview-hint {
+  width: 100%;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.72;
+  padding: 0 8px 4px;
+  flex: 0 0 auto;
+}
+/* Body wrapper: centers radar chart + legend in remaining vertical space */
+.radar-overview-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+/* Wrapper that keeps the SVG centered; prevents legend from pushing it */
+.radar-overview-chart-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+/* ECharts radar container */
+.radar-overview-ec-wrap {
+  width: 100%;
+  flex: 0 0 auto;
+  position: relative;  /* anchor for the DOM overlay labels */
+  overflow: visible;   /* allow overlay labels to extend slightly outside if needed */
+}
+.radar-overview-ec {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+/* DOM overlay for interactive condition labels around the radar chart */
+.radar-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;  /* pass mouse events through to ECharts by default */
+  overflow: visible;
+}
+.radar-overlay-lbl {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  border: none;
+  border-radius: 11px;
+  padding: 3px 9px;
+  font-size: 12px;
+  line-height: 20px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  background: var(--radar-lbl-inactive-bg, #e5e7eb);
+  color: var(--radar-lbl-inactive-fg, #374151);
+  /* Include transform in transition so label slide is the primary visible motion */
+  transition: background 0.14s, color 0.14s, box-shadow 0.14s,
+              transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 2; /* sit above condition thumbs (z-index: 1) */
+}
+.radar-overlay-lbl:hover {
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.25);
+}
+.radar-overlay-lbl:focus-visible {
+  outline: 2px solid var(--fc-color-primary, #2563eb);
+  outline-offset: 2px;
+}
+.radar-overlay-lbl.is-active {
+  background: var(--fc-color-primary, #2563eb);
+  color: #ffffff;
+}
+/* Dark mode adjustments for overlay labels */
+[data-theme="dark"] .radar-overlay-lbl {
+  --radar-lbl-inactive-bg: #374151;
+  --radar-lbl-inactive-fg: #d1d5db;
+}
+.radar-overview-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.radar-overview-empty {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  padding: 16px 8px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.radar-overview-legend {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 4px 4px 4px;
+  flex: 0 0 auto;
+  width: 100%;
+  justify-content: center;
+}
+.radar-overview-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 2px 2px 2px 6px;
+  transition: background 0.12s, opacity 0.12s;
+  user-select: none;
+}
+.radar-overview-legend-item:hover {
+  background: var(--hover-bg, rgba(128,128,128,0.12));
+}
+.radar-overview-legend-item.is-hidden {
+  opacity: 0.4;
+}
+/* Clickable toggle area (dot + label) */
+.radar-overview-legend-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.radar-overview-legend-toggle:focus-visible {
+  outline: 2px solid var(--accent-color, #3e6bff);
+  border-radius: 3px;
+}
+/* Remove (×) button */
+.radar-overview-legend-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-secondary, #888);
+  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.radar-overview-legend-remove:hover {
+  background: rgba(220,50,50,0.15);
+  color: #e03030;
+}
+.radar-overview-legend-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.radar-overview-legend-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ---- Radar legend thumb: model-level aggregate like-state ---- */
+.radar-overview-legend-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 0;
+  font-size: 13px;
+  color: #9ca3af; /* gray = none liked */
+  transition: color 0.18s, background 0.14s, transform 0.14s;
+}
+.radar-overview-legend-thumb:hover {
+  background: rgba(220, 38, 38, 0.10);
+  transform: scale(1.18);
+}
+.radar-overview-legend-thumb.thumb-partial {
+  color: #e08080; /* muted rose: midpoint between gray (#9ca3af) and liked (#ef4444) */
+}
+.radar-overview-legend-thumb.thumb-all {
+  color: #ef4444; /* red = all liked, matches sidebar text-red-500 */
+}
+.radar-overview-legend-thumb.is-persist-active {
+  background: rgba(37, 99, 235, 0.14);
+  border-radius: 50%;
+  color: var(--fc-color-primary, #2563eb);
+}
+/* Dark mode: base state (none) in gray; explicit rules below preserve stateful colors */
+[data-theme="dark"] .radar-overview-legend-thumb {
+  color: #6b7280;
+}
+[data-theme="dark"] .radar-overview-legend-thumb.thumb-partial {
+  color: #e08080;
+}
+[data-theme="dark"] .radar-overview-legend-thumb.thumb-all {
+  color: #ef4444;
+}
+
+/* ---- Radar overlay condition thumbs (appear next to condition labels in persist mode) ---- */
+.radar-overlay-thumb {
+  position: absolute;
+  /* Centered at the same position as the corresponding condition label.
+     The label (z-index: 2) covers the thumb (z-index: 1) in resting state.
+     has-persist shifts the labels outward, revealing the thumbs. */
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--radar-lbl-inactive-bg, #e5e7eb);
+  color: #9ca3af;
+  padding: 0;
+  user-select: none;
+  z-index: 1;
+}
+.radar-overlay-thumb.is-liked {
+  color: #ef4444; /* matches sidebar text-red-500 */
+}
+.radar-overlay-thumb:hover {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.30);
+}
+/* Reveal condition thumbs when overlay is in persistent-highlight mode */
+.radar-overlay.has-persist .radar-overlay-thumb {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Correct left/right edge anchoring for condition labels.
+   Left-side labels use their right edge as the anchor point (translate -100%),
+   right-side labels use their left edge as the anchor point (translate 0).
+   This ensures that equal translation distances in persist-mode produce
+   consistent gaps between label edge and like-thumb, regardless of label length. */
+.radar-overlay-lbl[data-label-side="left"] {
+  transform: translate(-100%, -50%);
+}
+.radar-overlay-lbl[data-label-side="right"] {
+  transform: translate(0, -50%);
+}
+/* Slide condition labels outward when overlay enters persistent-highlight mode.
+   Left-side labels move left; right-side labels move right.
+   Because labels are now anchored from their inner edge, the gap between the
+   label edge and the thumb is always exactly 30px, regardless of label length. */
+.radar-overlay.has-persist .radar-overlay-lbl[data-label-side="left"] {
+  transform: translate(calc(-100% - 25px), -50%);
+}
+.radar-overlay.has-persist .radar-overlay-lbl[data-label-side="right"] {
+  transform: translate(25px, -50%);
+}
+/* Dark mode: keep background; base color stays gray; is-liked restores state color */
+[data-theme="dark"] .radar-overlay-thumb {
+  background: #374151;
+  color: #6b7280;
+}
+[data-theme="dark"] .radar-overlay-thumb.is-liked {
+  color: #ef4444;
+}
+
+
+/* ---- Panel Switcher: tab/slide container replacing width-collapse ---- */
+/* Takes all remaining space in the chart-upper-row after the radar panel */
+.chart-panel-switcher {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  overflow: hidden; /* clips the horizontally sliding track */
+  display: flex;
+  flex-direction: column;
+}
+/* Narrow mode: no horizontal clip needed; panels are show/hidden instead of sliding */
+.is-narrow .chart-panel-switcher {
+  overflow: visible;
+}
+/* Sliding track: 200% wide, contains two 50%-each panels side by side.
+   Extra panel occupies the left slot, main panel the right slot.
+   Default (no show-extra): shift left by 50% to reveal the right (main) panel. */
+.chart-panel-track {
+  display: flex;
+  flex: 1 1 auto;
+  width: 200%;
+  transform: translateX(-50%);
+  transition: transform 0.4s cubic-bezier(.22,.61,.36,1);
+  will-change: transform;
+}
+/* Slide to extra panel (left slot): reset transform to show the left panel */
+.chart-panel-switcher.show-extra .chart-panel-track {
+  transform: translateX(0);
+}
+/* Disable transition during initial load */
+.chart-panel-switcher.no-panel-transition .chart-panel-track {
+  transition: none !important;
+}
+/* Narrow: no sliding — panels are shown/hidden directly */
+.is-narrow .chart-panel-track {
+  transform: none !important;
+  transition: none !important;
+  width: 100%;
+  flex-direction: column;
+}
+/* Each panel = 50% of track = 100% of switcher width */
+.chart-main-panel,
+.chart-extra-panel {
+  width: 50%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Narrow: panels are full-width, stacked (only one shown at a time) */
+.is-narrow .chart-main-panel,
+.is-narrow .chart-extra-panel {
+  width: 100%;
+}
+/* Narrow: hide extra panel by default; show/hide via show-extra class */
+.is-narrow .chart-extra-panel {
+  display: none;
+}
+.is-narrow .chart-panel-switcher.show-extra .chart-main-panel {
+  display: none;
+}
+.is-narrow .chart-panel-switcher.show-extra .chart-extra-panel {
+  display: flex;
+}
+/* Reserve right edge for desktop arrow button in non-narrow mode */
+.chart-main-panel,
+.chart-extra-panel {
+  padding-right: 28px;
+}
+.is-narrow .chart-main-panel,
+.is-narrow .chart-extra-panel {
+  padding-right: 0;
+}
+
+/* Extra content panel always fills its slot */
+.chart-extra-col {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- Desktop panel arrow button ---- */
+.chart-panel-arrow {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 5;
+  transition: color 0.15s;
+  user-select: none;
+}
+.chart-panel-arrow:hover { color: var(--text-primary); }
+/* When extra panel is active, arrow points left (slides track left to reveal main panel) */
+.chart-panel-switcher.show-extra .chart-panel-arrow { transform: scaleX(-1); }
+/* Hide in narrow mode (swipe or JS-only switching) */
+.is-narrow .chart-panel-arrow { display: none; }
+/* Hide when no curves (no-curves state auto-shows extra panel; no toggle needed) */
+.chart-upper-row.has-no-curves .chart-panel-arrow { display: none; }
+
+
+.chart-extra-col-inner {
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+/* Non-narrow: take chart-extra-col-inner out of flex-sizing flow so gallery
+   content cannot push the switcher/row taller than the chart panel drives. */
+.fc-chart-container:not(.is-narrow) .chart-extra-col {
+  position: relative;
+}
+.fc-chart-container:not(.is-narrow) .chart-extra-col > .chart-extra-col-inner {
+  position: absolute;
+  inset: 0;
+}
+/* Review (left) + gallery (right) row. Falls back to vertical stacking in
+   narrow/insufficient-width contexts (wrapping disabled only in non-narrow
+   viewports ≥640px via the override below).
+   overflow:hidden keeps the row from becoming a shared scroll container —
+   each child (review-body, gallery-thumbs) scrolls independently. */
+.extra-panel-content-row {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  overflow: hidden;
+  flex-wrap: wrap;
+  align-items: stretch;
+  align-content: flex-start;
+}
+/* Non-narrow: prevent wrapping so review and gallery stay on the same flex line.
+   align-items:stretch then gives the gallery a definite height from the container,
+   which is required for gallery-thumbs to scroll independently.
+   Scope this to wider viewports so narrow fullscreen/mobile can still wrap/stack. */
+@media (min-width: 640px) {
+  .fc-chart-container:not(.is-narrow) .extra-panel-content-row {
+    flex-wrap: nowrap;
+  }
+}
+/* Review section (left column) */
+.extra-panel-review-section {
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.extra-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.extra-panel-review-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary, var(--text-secondary));
+}
+
+/* ---- Gallery section inside chart-extra-col ---- */
+/* Wide/side-by-side: cap at 280px so it doesn't grow much wider. */
+.extra-panel-gallery {
+  flex: 1 1 280px;
+  max-width: 280px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Stacked/narrow layout: gallery expands to fill full available width.
+   Explicit height gives gallery-thumbs a definite container so it can scroll
+   internally without the gallery growing the parent without bound. */
+.is-narrow .extra-panel-gallery {
+  max-width: 100%;
+  height: 260px;
+  flex-shrink: 0;
+}
+.gallery-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+/* ---- Shared gallery scroll area (video panel + thumbnails scroll together) ---- */
+.gallery-scroll-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Bilibili video panel ---- */
+.gallery-video-panel {
+  position: relative;
+  width: 100%;
+  /* 16:9 aspect ratio using padding-top trick (same technique as gallery thumbnails) */
+  padding-top: 56.25%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+/* Poster and iframe layers fill the panel */
+.gallery-video-poster,
+.gallery-video-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 8px;
+}
+.gallery-video-poster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  /* Poster fades out after iframe is ready – transition controlled by JS */
+  transition: opacity 0.35s ease;
+  z-index: 2;
+}
+.gallery-video-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+/* Play-button affordance */
+.gallery-video-play-btn {
+  position: relative;
+  z-index: 3;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.gallery-video-panel:hover .gallery-video-play-btn {
+  transform: scale(1.08);
+  background: #fff;
+}
+.gallery-video-panel:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+/* CSS border-trick triangle */
+.gallery-video-play-icon {
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 17px solid #111827;
+  margin-left: 3px;
+}
+/* iframe layer: hidden until play; poster fades once iframe loads */
+.gallery-video-iframe {
+  z-index: 1;
+}
+.gallery-thumbs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  overflow: hidden; /* scrolling is now handled by the parent .gallery-scroll-area */
+  padding: 8px;
+  box-sizing: border-box;
+  align-content: start;
+  /* Prevent shrinking when used as a flex item so scrolling on .gallery-scroll-area works reliably */
+  flex: 0 0 auto;
+}
+.gallery-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  opacity: 0.6;
+  display: none;
+}
+.gallery-thumbs:empty + .gallery-empty {
+  display: block;
+}
+
+/* Individual thumbnail */
+.gallery-thumb-item {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: box-shadow 0.15s ease;
+  line-height: 0;
+}
+.gallery-thumb-item:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.gallery-thumb-item img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  transition: transform 0.15s ease;
+}
+.gallery-thumb-item:hover img {
+  transform: scale(1.04);
+}
+/* Hero image (first/_1): spans full gallery width, 3:2 aspect ratio.
+   padding-top produces reliable intrinsic height (percentage always refers
+   to the element's own inline/width size) regardless of the surrounding
+   flex→absolute→flex→grid scroll context where aspect-ratio may collapse
+   grid rows to zero when the only child is absolutely positioned. */
+.gallery-thumb-item.is-primary {
+  grid-column: 1 / -1;
+  padding-top: 66.67%;
+}
+/* Other thumbnails: square 1:1 */
+.gallery-thumb-item:not(.is-primary) {
+  padding-top: 100%;
+}
+
+/* ---- Lightbox ---- */
+.gallery-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0,0,0,0.88);
+  align-items: center;
+  justify-content: center;
+}
+.gallery-lightbox.is-open {
+  display: flex;
+}
+.gallery-lightbox-img {
+  max-width: min(92vw, 1200px);
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+}
+.gallery-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: rgba(255,255,255,0.12);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.gallery-lightbox-close:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+
+.chart-main-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* In narrow/integrated mode the legend rail stacks below the chart; allow it to show */
+.is-narrow .chart-main-col {
+  overflow: visible;
+}
+.chart-main-col .chart-stack {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fc-chart-container {
+  position: relative !important;
+  min-height: clamp(280px, 30vh, 400px);
+  height: auto;
+  background: var(--bg-secondary) !important;
+  scrollbar-gutter: stable both-edges;
+}
+
+.fc-chart-container.chart-flex:not(.is-narrow) { --nf-chart-h: 45dvh; }
+.fc-chart-container.chart-flex.is-narrow      { --nf-chart-h: 30dvh; flex-direction: column;}
+
+.fc-chart-container:not(:fullscreen) .chart-stack > #chartRoot {
+  height: var(--nf-chart-h, 45dvh) !important;
+}
+.fc-chart-container:not(:fullscreen):not(.is-narrow) .chart-stack > #chartRoot { min-height: 500px; }
+.fc-chart-container:not(:fullscreen).is-narrow .chart-stack > #chartRoot { min-height: 250px; }
+:fullscreen .chart-stack > #chartRoot { flex: 1 1 auto !important; min-height: 0 !important; }
+
+/* New layout: #chartRoot inside chart-main-col fills available flex space */
+.fc-chart-container .chart-main-col .chart-stack > #chartRoot {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 250px !important;
+}
+
+#chartRoot, #spectrumHost { overflow-anchor: auto; }
+
+#spectrumHost {
+  position: relative;
+  height: 0;
+  overflow: hidden;
+  transition: height var(--transition-speed, .25s) ease;
+}
+.fc-chart-container:not(:fullscreen):not(.is-narrow)[data-chart-mode="spectrum"] #spectrumHost {
+  height: clamp(300px, var(--nf-chart-h, 45dvh), 600px);
+}
+.fc-chart-container:not(:fullscreen).is-narrow[data-chart-mode="spectrum"] #spectrumHost {
+  height: clamp(200px, var(--nf-chart-h, 30dvh), 600px);
+}
+#spectrumHost > .spectrum-inner {
+  width: 100%; height: 100%; position: relative; overflow: visible; transform-origin: top;
+}
+
+/* X轴开关 */
+.chart-xaxis-overlay{
+  position:absolute; z-index:180; visibility:hidden; transform: translate(-65%, -35%);
+  pointer-events: none;
+}
+.chart-xaxis-overlay .switch-container,
+.chart-xaxis-overlay .switch-track,
+.chart-xaxis-overlay .switch-slider,
+.chart-xaxis-overlay .switch-label { pointer-events: auto; }
+
+.switch-container { position:relative; width:68px; height:30px; }
+.switch-track { width:100%; height:100%; background:var(--border-color); border-radius:11px; position:relative; overflow:hidden; }
+.switch-track::before {
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background: linear-gradient(to bottom, rgba(255,255,255,.22), rgba(255,255,255,0));
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.10), inset 0 -1px 0 rgba(0,0,0,.05);
+}
+[data-theme="dark"] .switch-track::before {
+  background: linear-gradient(to bottom, rgba(255,255,255,.08), rgba(255,255,255,0));
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(0,0,0,0.35);
+}
+.switch-slider {
+  position:absolute; width:22px; height:100%; background:var(--text-secondary); border-radius:11px; left:0; top:0;
+  transition: transform .25s; will-change:transform; box-shadow: 0 2px 5px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.25), inset 0 -1px 0 rgba(0,0,0,.25);
+  cursor:grab;
+}
+.switch-label {
+  cursor:pointer; position:absolute; transform:translateY(5%);
+  font-weight:600; font-size:18px; color:var(--text-primary); white-space:nowrap; user-select:none;
+}
+.switch-label-left { right:calc(100% + 4px); }
+.switch-label-right { left:calc(100% + 4px); }
+.chart-xaxis-overlay, .switch-container, .switch-track, .switch-slider { touch-action: none; }
+
+/* 拟合按钮与气泡 */
+.fit-buttons{
+  position: absolute; z-index:220; visibility:hidden; display:flex; gap:6px; pointer-events:auto;
+  width:100%;              /* 让内部按钮可以 100% 撑满容器 */
+  padding: 0 20px;
+}
+.fit-buttons .btn{
+  appearance:none; border:1px solid var(--border-color);
+  background: var(--fit-btn-bg, var(--bg-secondary)); /* 稍微醒目的默认背景 */
+  color: var(--fit-btn-fg, var(--text-primary));
+  font-size:14px; font-weight:700; padding:6px 12px; border-radius:8px; cursor:pointer; user-select:none;
+  box-shadow: var(--shadow-md);
+  transition: transform .02s ease-in-out, background-color .15s ease, color .15s ease;
+  display:inline-flex; align-items:center; justify-content:center;
+  min-height: calc(var(--fit-btn-min-h) * 1.5); line-height:1.2; box-sizing:border-box; white-space:nowrap;
+  width:100%;              /* 实时拟合按钮宽度占满容器 */
+}
+.fit-buttons .btn:active{ transform: translateY(1px); }
+.fit-buttons .btn.active{
+  background: var(--ok);
+  color:var(--color-white);
+  border-color: var(--ok);
+}
+.fit-buttons .btn.active:active{ background: var(--ok-pressed); }
+
+.fit-bubble{
+  position: fixed !important; min-width:320px; max-width:min(580px, 92vw);
+  z-index:220 !important; 
+  opacity:0;
+  visibility:hidden; max-height:60vh; overflow:auto;
+  background: var(--bg-bubble); backdrop-filter: blur(4px) saturate(120%);
+  border:1px solid var(--border-color); border-radius:12px; box-shadow: var(--shadow-strong);
+  padding:10px 12px; cursor:grab; touch-action:none;
+  --fit-col-val-ch:6;
+  --fit-col-pct-ch:6;
+  --fit-col-cross-ch:8;
+  transition: opacity .15s ease;
+}
+.fit-bubble.dragging{ cursor:grabbing; }
+/* 可见状态类，由 JS 控制添加/移除 */
+.fit-bubble.is-visible{
+  opacity:1;
+  visibility:visible;
+}
+.fit-bubble .head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:6px;
+  position:relative;
+  padding-right:36px; /* 留按钮空间 */
+  white-space:nowrap;
+}
+.fit-bubble .title{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-weight:800;
+  color:var(--text-primary);
+  font-size:13px;
+  line-height:1.2;
+  white-space:nowrap;
+}
+.fit-bubble .title #fitXInput{
+  width:10ch;
+  font-size:12px;
+  padding:4px 6px;
+  border:1px solid var(--border-color);
+  border-radius:8px;
+  background:transparent;
+  color:var(--text-primary);
+  outline:none;
+}
+.fit-bubble .btn-close-top{
+  position:absolute;
+  top:50%;
+  right:4px;
+  transform:translateY(-50%);
+  appearance:none;
+  border:1px solid var(--border-color);
+  background:var(--bg-bubble);
+  color:var(--text-primary);
+  /* 隐藏文本叉号，仅保留按钮的可访问名称（aria-label="关闭"） */
+  font-size:0;
+  line-height:0;
+  width:24px;
+  height:24px;
+  padding:0;
+  border-radius:8px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: var(--shadow-md);
+  transition: background-color .15s ease, transform .1s ease;
+}
+/* 用两条线画“X”，精确居中 */
+.fit-bubble .btn-close-top::before,
+.fit-bubble .btn-close-top::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:14px;           /* 叉的长度 */
+  height:2px;           /* 线条粗细，可按需改为 1.5px 提升视感 */
+  background-color: var(--text-primary);
+  transform-origin: center;
+  border-radius:1px;
+}
+.fit-bubble .btn-close-top::before{
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.fit-bubble .btn-close-top::after{
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.fit-bubble .btn-close-top:active{
+  transform: translateY(-50%) scale(.92);
+}
+
+.fit-bubble input[type="number"]{ width:10ch; font-size:12px; padding:4px 6px; border:1px solid var(--border-color); border-radius:8px; background:transparent; color:var(--text-primary); outline:none; }
+.fit-bubble .row{
+  display:grid;
+  grid-template-columns:12px 2px minmax(0,1fr)
+    calc(var(--fit-col-val-ch, 6) * 1ch)
+    calc(var(--fit-col-pct-ch, 6) * 1ch)
+    8px
+    calc(var(--fit-col-cross-ch, 10) * 1ch);
+  column-gap:4px; align-items:center;
+  margin:0 0; color:var(--text-primary); font-size:13px;
+  cursor:pointer; border-radius:6px; padding:2px 4px;
+  transition: background-color .15s ease, opacity .15s ease;
+  font-variant-numeric: tabular-nums;
+}
+.hoverable-row:hover { background: var(--row-hover-bg); }
+.fit-bubble .row.is-off{ opacity:.35; }
+.fit-bubble .row .dot{ grid-column:1 / 2; width:12px; height:12px; border-radius:50%; }
+.fit-bubble .row .col-name{ grid-column:3 / 4; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.fit-bubble .row .col-val,
+.fit-bubble .row .col-pct,
+.fit-bubble .row .col-cross{ text-align:right; white-space:nowrap; }
+.fit-bubble .row .col-pct{ color:var(--text-secondary); }
+.fit-bubble .row .col-sep{ grid-column:6 / 7; color:var(--text-secondary); opacity:.5; text-align:center; user-select:none; }
+.fit-bubble .hint{ color:var(--text-secondary); font-size:11px; }
+
+.fit-pointer{ position:absolute; z-index:200; visibility:hidden; pointer-events:none; }
+.fit-pointer .line{ position:absolute; top:0; bottom:0; width:2px; transform:translateX(-1px); background: var(--accent); opacity:.95; }
+.fit-pointer .handle{
+  position:absolute; bottom:-22px; left:-8px; width:16px; height:24px; border-radius:4px;
+  background: var(--accent); box-shadow: var(--shadow-md); cursor:grab; touch-action:none; pointer-events:auto;
+}
+.fit-pointer .handle::after{
+  content:""; position:absolute; left:50%; transform:translateX(-50%); top:-7px; width:0; height:0;
+  border-left:8px solid transparent; border-right:8px solid transparent; border-bottom:9px solid var(--accent);
+}
+.fit-pointer .handle::before{
+  content:""; position:absolute; left:50%; top:50%; width: var(--fit-hitbox); height: var(--fit-hitbox);
+  transform:translate(-50%, -50%); background:transparent; pointer-events:auto;
+}
+
+/* 全屏频谱展开逻辑 */
+.fc-chart-container:fullscreen {
+  height:100vh !important; box-sizing:border-box !important;
+  scrollbar-gutter: stable both-edges;
+}
+:fullscreen .chart-stack > #spectrumHost,
+:fullscreen > #spectrumHost {
+  flex:0 0 auto !important;
+  height:auto !important;
+  max-height:0;
+  transition:max-height var(--transition-speed, .25s) ease;
+  will-change:max-height;
+  min-height:0 !important;
+}
+/* 仅放开主图的溢出，允许主图 tooltip 溢出 chart-stack */
+:fullscreen .chart-stack > #chartRoot {
+  overflow: visible !important;
+}
+
+/* 频谱：展开模式才放开溢出，配合高度动画不会漏出内容 */
+:fullscreen[data-chart-mode="spectrum"] .chart-stack > #spectrumHost,
+:fullscreen[data-chart-mode="spectrum"] > #spectrumHost {
+  overflow: visible !important;
+}
+
+/* 频谱：非展开（收起/默认）继续裁切，保证折叠动画与隐藏语义 */
+:fullscreen:not([data-chart-mode="spectrum"]) .chart-stack > #spectrumHost,
+:fullscreen:not([data-chart-mode="spectrum"]) > #spectrumHost {
+  overflow: clip !important; /* 或 hidden */
+}
+:fullscreen:not([data-chart-mode="spectrum"]) #spectrumHost { height:0 !important; min-height:0 !important; }
+:fullscreen #spectrumHost > .spectrum-inner { height: var(--fs-spec-h, auto) !important; }
+
+/* === 全屏频谱扩展高度修复 ===
+   Without these overrides, the static min-heights on .chart-upper-row (clamp 280px…620px)
+   and #chartRoot (250px) prevent the upper-row from shrinking when the spectrum grows,
+   leaving the spectrum with very little usable height on short viewports
+   (phone landscape, typically 375–430px tall). */
+
+/* (a) Remove the upper-row height floor in fullscreen – flex re-distributes freely */
+:fullscreen .chart-upper-row {
+  min-height: 0;
+}
+
+/* (b) Remove the 250px main-chart floor in fullscreen so the upper-row can yield
+   height to the growing spectrum panel. Needs higher specificity than line above. */
+.fc-chart-container:fullscreen .chart-main-col .chart-stack > #chartRoot {
+  min-height: 0 !important;
+}
+
+/* (c) Let the ECharts radar container scale with viewport height in fullscreen.
+   On tall screens (45dvh ≥ 220px, i.e. height ≥ ~490px) this is a no-op.
+   On phone landscape (45dvh ≈ 169–194px) the radar shrinks gracefully. */
+:fullscreen .radar-overview-ec {
+  height: min(220px, 45dvh);
+}
+
+/* (d) For short-viewport fullscreen (phone landscape ≤ 490px tall), narrow the radar
+   panel proportionally so width and height shrink together, making space for both
+   the spectrum chart and the main chart. */
+@media (max-height: 490px) {
+  :fullscreen .radar-overview-panel {
+    --_rs: min(220px, 45dvh);
+    min-width: calc(var(--_rs) + 40px) !important;
+    max-width: calc(var(--_rs) + 80px) !important;
+    width: calc(var(--_rs) + 60px) !important;
+  }
+}
+
+/* 布局 */
+.fc-chart-container.chart-flex { display:flex; align-items:stretch; overflow:hidden; }
+.fc-chart-container.chart-flex:not(.is-narrow) .chart-stack { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
+.fc-chart-container.chart-flex:not(.is-narrow).rail-parked .chart-stack { padding-right:0; }
+.fc-chart-container.chart-flex .chart-stack > * { flex:0 0 auto; min-height:0; }
+.fc-chart-container.chart-flex #legendRail .legend-scroll { margin-left:8px; }
+#legendRail .legend-scroll { flex:1 1 auto; overflow:auto; margin-bottom:8px; }
+#legendRail .rail-actions{
+  padding: 6px 10px;        /* 与拟合标题一致的上下内边距 */
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 8px;       /* 与 integrated-fit-head 的 wrapper 间距保持一致，避免抖动 */
+}
+/* 集成模式：在全屏下让 rail 顶部按钮的高度与拟合标题一致，避免开启/关闭拟合时内容上下跳动 */
+:fullscreen.fc-chart-container.legend-integrated #legendRail .rail-actions{
+  min-height: 34px;         /* 与 .integrated-fit-head 视觉高度对齐（≈ 13px * 1.2 + 12px padding） */
+}
+
+/* 集成全屏下按钮本体高度同步到标题高度，保证切换时整体高度一致 */
+:fullscreen.fc-chart-container.legend-integrated #legendRail .rail-actions .fit-buttons .btn{
+  min-height: 34px;         /* 覆写默认 36px，避免与标题高度不一致导致的跳动 */
+  padding: 6px 12px;        /* 与标题 padding 对齐 */
+}
+#legendRail {
+  --rail-transition:.25s;
+  position:relative; z-index:auto;
+  flex:0 0 auto;
+  max-width:min(48vw, 460px);
+  min-width:100px;
+  box-sizing:border-box; background:transparent; padding:0;
+  display:flex; flex-direction:column; overflow:hidden;
+  transition:
+    transform var(--rail-transition) cubic-bezier(.22,.61,.36,1),
+    margin-right var(--rail-transition) cubic-bezier(.22,.61,.36,1);
+  will-change:transform, margin-right;
+}
+:fullscreen #legendRail {
+  transition:
+    transform var(--rail-transition, .25s) cubic-bezier(.22,.61,.36,1),
+    margin-right var(--rail-transition, .25s) cubic-bezier(.22,.61,.36,1);
+}
+.fc-chart-container.chart-flex:not(.is-narrow).rail-parked #legendRail {
+  transform:translate3d(calc(var(--legend-rail-w, 240px) + var(--rail-slide-overshoot, 16px)),0,0);
+  margin-right:calc(-1 * var(--legend-rail-w, 240px));
+  pointer-events:none;
+}
+.fc-chart-container.chart-flex.rail-parked .chart-stack { flex:1 1 auto; width:100%; }
+
+.fc-chart-container.chart-flex.is-narrow #legendRail {
+  width:100% !important;
+  max-width:none !important;
+  min-width:0 !important;
+  padding-bottom:16px;
+  display:block;
+}
+/* Hide the rail in non-narrow non-integrated mode to avoid occupying space in the flex column */
+.fc-chart-container.chart-flex:not(.is-narrow):not(.legend-integrated) #legendRail {
+  display:none !important;
+}
+.fc-chart-container.chart-flex.is-narrow #legendRail .legend-scroll {
+  overflow:visible; max-height:none; margin-bottom:0; 
+}
+.fc-chart-container.chart-flex.is-narrow #legendRail .rail-actions {
+  display:none !important; width:0 !important; padding:0 !important; margin:0 !important;
+}
+
+/* Legend 行统一样式（原 legend-item 移除） */
+.legend-row {
+  display:flex; align-items:center; gap:8px;
+  padding:3px 4px; border-radius:6px; cursor:pointer;
+  transition: background-color .15s ease, opacity .15s ease;
+  user-select:none; font-size:13px; line-height:1.2;
+}
+.legend-row.is-off { opacity:.55; }
+.legend-row.is-off .dot ,
+.legend-fit-grid .legend-row.is-off .dot {
+  opacity: .35;
+}
+.legend-row .dot { width:12px; height:12px; border-radius:50%; flex:0 0 auto; }
+.legend-row .name {
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-weight:800; color:var(--text-primary); display:inline-flex; align-items:center; gap:4px;
+}
+.legend-row .name.has-l2 { flex-direction:column; align-items:flex-start; white-space:normal; }
+.legend-row .name.has-l2 .l1 { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.legend-row .name.has-l2 .l2 {
+  margin-top:1px; white-space:nowrap; font-weight:500; font-size:12px; color:var(--text-secondary); line-height:14px;
+}
+.legend-row .cond-inline { font-weight:500; font-size:12px; color:var(--text-secondary); }
+
+.legend-fit-grid { display:flex; flex-direction:column; gap:0; }
+.legend-fit-grid.is-fit-on .legend-row {
+  display:grid;
+  grid-template-columns:
+    12px
+    8px
+    minmax(0,1fr)
+    calc(var(--fit-col-val-ch, 6) * 1ch)
+    calc(var(--fit-col-pct-ch, 6) * 1ch)
+    8px
+    calc(var(--fit-col-cross-ch, 10) * 1ch);
+  column-gap:4px; align-items:center; font-variant-numeric:tabular-nums;
+}
+.legend-fit-grid.is-fit-on .legend-row .dot      { grid-column:1 / 2; }
+.legend-fit-grid.is-fit-on .legend-row .name     { grid-column:3 / 4; }
+.legend-fit-grid.is-fit-on .legend-row .col-val  { grid-column:4 / 5; text-align:right; white-space:nowrap; font-size:11px; overflow:hidden; text-overflow:ellipsis; }
+.legend-fit-grid.is-fit-on .legend-row .col-pct  { grid-column:5 / 6; text-align:right; white-space:nowrap; font-size:11px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; }
+.legend-fit-grid.is-fit-on .legend-row .col-sep  { grid-column:6 / 7; color:var(--text-secondary); opacity:.5; text-align:center; user-select:none; width:8px; }
+.legend-fit-grid.is-fit-on .legend-row .col-cross{ grid-column:7 / 8; text-align:right; white-space:nowrap; font-size:11px; overflow:hidden; text-overflow:ellipsis; }
+.legend-fit-grid:not(.is-fit-on) .legend-row .col-val,
+.legend-fit-grid:not(.is-fit-on) .legend-row .col-pct,
+.legend-fit-grid:not(.is-fit-on) .legend-row .col-cross,
+.legend-fit-grid:not(.is-fit-on) .legend-row .col-sep { display:none; }
+
+/* 集成包裹层与宽度变量 */
+.legend-integrated-wrapper {
+  display:flex; flex-direction:column; gap:8px;
+  padding:4px 8px 8px 4px; box-sizing:border-box;
+  --fit-col-val-ch:6; --fit-col-pct-ch:6; --fit-col-cross-ch:8;
+}
+
+/* 集成 head */
+.integrated-fit-head{
+  position:sticky;
+  top:0;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:6px 10px;
+  border:1px solid var(--border-color);
+  border-radius:8px;
+  background: var(--bg-bubble);
+  box-shadow: var(--shadow-sm);
+  font-size:12px;
+  line-height:1.2;
+  z-index:2;
+  backdrop-filter: blur(8px);
+  white-space:nowrap;
+  cursor:default;
+}
+.integrated-fit-head.is-active { display:flex; }
+.integrated-fit-head .title{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-weight:800;
+  color:var(--text-primary);
+  font-size:13px;
+  line-height:1.2;
+  white-space:nowrap;
+}
+.integrated-fit-head .title #fitXInputLegend{
+  width:10ch;
+  font-size:12px;
+  padding:4px 6px;
+  border:1px solid var(--border-color);
+  border-radius:8px;
+  background:transparent;
+  color:var(--text-primary);
+  outline:none;
+}
+
+.integrated-fit-head .title #fitXInputLegend:focus{
+  box-shadow:0 0 0 2px rgba(37,99,235,.25);
+}
+
+/* 统一单位样式 */
+.integrated-fit-head .title #fitXUnitLegend.unit{
+  font-size:11px;
+  font-weight:600;
+  color:var(--text-secondary);
+}
+
+/* 集成模式关闭按钮（无边框），与气泡按钮共享伪元素叉形，但不显示外轮廓边框 */
+.integrated-fit-head .btn-close-top.integrated{
+  position:absolute;
+  top:50%;
+  right:6px;
+  transform:translateY(-50%);
+  appearance:none;
+  background:transparent;
+  border:none;                /* 要求：x 不加边框 */
+  font-size:0;
+  line-height:0;
+  width:24px;
+  height:24px;
+  padding:0;
+  border-radius:8px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:none;
+  transition: background-color .15s ease, transform .1s ease;
+}
+
+.integrated-fit-head .btn-close-top.integrated::before,
+.integrated-fit-head .btn-close-top.integrated::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:14px;
+  height:2px;
+  background-color: var(--text-primary);
+  transform-origin: center;
+  border-radius:1px;
+}
+.integrated-fit-head .btn-close-top.integrated::before{
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.integrated-fit-head .btn-close-top.integrated::after{
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.integrated-fit-head .btn-close-top.integrated:hover{
+  background:rgba(0,0,0,0.06);
+}
+[data-theme="dark"] .integrated-fit-head .btn-close-top.integrated:hover{
+  background:rgba(255,255,255,0.08);
+}
+
+.integrated-fit-head .btn-close-top.integrated:active{
+  transform:translateY(-50%) scale(.92);
+}
+
+.fc-chart-container.legend-integrated #legendRail {
+  transition:width .25s ease;
+  transform:none !important;
+  margin-right:0 !important;
+  pointer-events:auto;
+  max-width:min(48vw, 460px);
+  overflow-x:hidden;
+}
+.fc-chart-container.legend-integrated #legendRail .legend-scroll {
+  margin-left:8px !important; overflow-x:hidden; margin-top:0 !important;
+}
+.fc-chart-container.legend-integrated.rail-parked #legendRail { transform:none; margin-right:0; }
+.fc-chart-container.legend-integrated .fit-bubble { display:none !important; }
+.fc-chart-container.legend-integrated #legendRail .rail-actions { padding:0; }
+
+/* Non-fullscreen integrated mode: line1 (legend name) uses normal weight, not bold */
+.fc-chart-container.legend-integrated:not(:fullscreen) #legendRail .legend-row .name {
+  font-weight:500;
+}
+/* Non-fullscreen integrated mode: line2 (condition) uses lighter color */
+.fc-chart-container.legend-integrated:not(:fullscreen) #legendRail .legend-row .name .l2 {
+  color: var(--text-secondary);
+}
+.fc-chart-container.legend-integrated:not(:fullscreen) #legendRail .legend-row .name .cond-inline {
+  color: var(--text-secondary);
+}
+
+/* Loading 覆盖层 */
+#spectrumHost .spectrum-loading {
+  position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  z-index:5; pointer-events:none; background:transparent;
+}
+#spectrumHost .spectrum-loading.is-active { display:flex; }
+#spectrumHost .spectrum-loading .spinner {
+  width:18px; height:18px; border-radius:50%;
+  border:2px solid var(--border-color); border-top-color: var(--accent);
+  animation:spectrum-spin 0.9s linear infinite; margin-right:8px;
+}
+#spectrumHost .spectrum-loading .text {
+  font-size:12px; color:var(--text-secondary); user-select:none; white-space:nowrap;
+}
+@keyframes spectrum-spin { to { transform: rotate(360deg); } }
+
+/* 频谱 Dock 按钮 */
+.spectrum-dock{
+  position:absolute; z-index:240; left:50%; bottom:0; transform:translateX(-50%);
+  display:inline-flex; align-items:center; gap:8px; padding:6px 10px;
+  background:transparent; border:none; box-shadow:none;
+  color:var(--text-primary); font-size:14px; font-weight:800; line-height:1;
+  white-space:nowrap; visibility:hidden; user-select:none; cursor:pointer;
+  --dock-band-w: min(150%, 480px);
+}
+.spectrum-dock .chev{ width:18px; height:18px; transition:transform .2s ease; }
+.spectrum-dock.is-open .chev{ transform:rotate(180deg); }
+:fullscreen .spectrum-dock .chev{ transform:rotate(180deg); }
+:fullscreen .spectrum-dock.is-open .chev{ transform:rotate(0deg); }
+.spectrum-dock .label{ white-space:nowrap; }
+
+.spectrum-dock::before{
+  content:""; position:absolute; top:-2px; left:50%; transform:translateX(-50%);
+  width:var(--dock-band-w); height:2px; border-radius:2px; pointer-events:none;
+  background: linear-gradient(to right, rgba(0,0,0,0), var(--border-color), rgba(0,0,0,0));
+}
+.spectrum-dock::after{
+  content:""; position:absolute; left:50%; transform:translateX(-50%);
+  top:-2px; bottom:0; width:var(--dock-band-w); border-radius:10px; pointer-events:none; z-index:-1;
+  background: linear-gradient(to right,
+    rgba(0,0,0,0) 0%,
+    var(--bg-secondary) 20%,
+    var(--bg-secondary) 80%,
+    rgba(0,0,0,0) 100%);
+}
+
+/* 拟合气泡底部 */
+.fit-bubble .foot{
+  position:sticky; bottom:0; background:var(--bg-bubble);
+  padding-top:0; margin-top:0; display:flex; align-items:center;
+  justify-content:space-between; gap:8px; box-shadow:0 -4px 10px rgba(0,0,0,0.03);
+}
+.fit-bubble .foot .hint{ color:var(--text-secondary); font-size:11px; margin:0; line-height:1.2; }
+
+.spectrum-res-switch {
+  /* 移除内边距，因为现在是精准定位 */
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  user-select: none;
+  /* 改为绝对定位，由 JS 控制位置 */
+  position: absolute; 
+  z-index: 180;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 初始隐藏，JS 计算好位置后再显示 */
+  visibility: hidden;
+}
+
+/* 容器：宽度比单个Item宽，用于显示一部分相邻Item */
+.spec-switch-container {
+  position: relative;
+  width: 66px;  /* 窗口宽度：36px(Item) + 18px(左露) + 18px(右露) */
+  height: 26px; /* 与 X轴开关高度一致 */
+  touch-action: none;
+  transform: translate(0, 7%);
+}
+
+/* 轨道：复用 X轴开关的底色与圆角，并增加左右内阴影 */
+.spec-switch-track {
+  width: 100%;
+  height: 100%;
+  background: var(--border-color);
+  border-radius: 10px; /* 半高圆角 */
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.10), inset 0 -1px 0 rgba(0,0,0,.05);
+}
+[data-theme="dark"] .spec-switch-track {
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.45), inset 0 -1px 0 rgba(0,0,0,0.35);
+}
+
+/* 使用伪元素增加左右边缘的“深邃”内阴影，提示可滑动 */
+.spec-switch-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: inherit;
+  /* 左右较重的内阴影，中间透明 */
+  box-shadow: inset 12px 0 12px -8px rgba(0,0,0,0.18), inset -12px 0 12px -8px rgba(0,0,0,0.18);
+}
+
+/* 滑动条：透明背景，纯文字容器 */
+.spec-switch-strip {
+  position: absolute;
+  top: 0; left: 0; height: 100%;
+  display: flex;
+  align-items: center;
+  width: max-content; /* 宽度由内容决定 */
+  background: transparent !important;
+  box-shadow: none !important;
+  will-change: transform;
+  z-index: 1;
+}
+
+/* 内部文字 Item */
+.spec-item {
+  width: 36px; /* 固定宽度 */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary); 
+  /* 初始状态，JS 会接管 */
+  opacity: 0.5; 
+  transform: scale(0.7);
+  transition: opacity 0.1s; /* 保留一点 CSS 过渡，用于点击时的平滑 */
+  user-select: none;
+}
+
+.spec-switch-container:active .spec-switch-track { cursor: grabbing; }
+
+/* 播放按钮列 */
+.fit-bubble .row{
+  grid-template-columns:12px 2px minmax(0,1fr)
+    calc(var(--fit-col-val-ch, 6) * 1ch)
+    calc(var(--fit-col-pct-ch, 6) * 1ch)
+    8px
+    calc(var(--fit-col-cross-ch, 10) * 1ch)
+    var(--fit-col-play-w, 32px);
+}
+.legend-fit-grid.is-fit-on .legend-row {
+  grid-template-columns:
+    12px
+    8px
+    minmax(0,1fr)
+    calc(var(--fit-col-val-ch, 6) * 1ch)
+    calc(var(--fit-col-pct-ch, 6) * 1ch)
+    8px
+    calc(var(--fit-col-cross-ch, 10) * 1ch)
+    var(--fit-col-play-w, 32px);
+}
+.col-play{ justify-self:flex-end; }
+.play-audio-btn{
+  width:20px; height:20px; min-width:20px;
+  border:1px solid var(--border-color);
+  border-radius:6px;
+  background: var(--bg-bubble);
+  color: var(--ok);  /* Green for enabled buttons */
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  box-shadow: var(--shadow-sm);
+  transition: background-color .1s ease, transform .05s ease, color .1s ease;
+}
+.play-audio-btn:active:not(:disabled){ transform: translateY(1px); }
+.play-audio-btn:disabled,
+.play-audio-btn.disabled{ 
+  opacity:.5; 
+  cursor: not-allowed; 
+  color: var(--text-secondary);  /* Grey for disabled buttons */
+}
+
+/* Out-of-domain visual cue: mute performance numbers when pointer is outside curve's domain */
+.fit-bubble .row.is-out-of-domain .col-val,
+.fit-bubble .row.is-out-of-domain .col-cross,
+.legend-fit-grid.is-fit-on .legend-row.is-out-of-domain .col-val,
+.legend-fit-grid.is-fit-on .legend-row.is-out-of-domain .col-cross {
+  color: var(--text-secondary);
+}
+/* Score overlay: per-dimension scores + center composite shown on radar legend hover */
+.radar-score-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.radar-score-lbl {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 0 3px rgba(255,255,255,0.8);
+}
+[data-theme="dark"] .radar-score-lbl {
+  text-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+.radar-score-center {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 0 4px rgba(255,255,255,0.9);
+}
+[data-theme="dark"] .radar-score-center {
+  text-shadow: 0 0 4px rgba(0,0,0,0.9);
+}
+
+/* Badge variant: applied inline when ScoreBadgeHelper provides colors.
+   Geometry tokens match .rpv2-score-badge exactly so all three views
+   (rankings, comparison radar, mini radar) share the same visual spec. */
+.radar-score-center--badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  text-shadow: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
