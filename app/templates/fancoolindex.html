@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+    /* 可在此修改全局最大曲线条目数（默认 8） */
+    window.APP_CONFIG = window.APP_CONFIG || {};
+    window.APP_CONFIG.maxItems = 8;
+    /* Canonical radar condition IDs in CCW-from-UL slot order (UL→L→LL→LR→R→UR).
+       Injected from backend SCORE_CONDITION_IDS env var; shared by all radar modules. */
+    window.APP_CONFIG.radarCids = {{ radar_cids|tojson }};
+  </script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>风扇库</title>
+
+  <link rel="preconnect" href="https://cdn.bootcdn.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.2/css/fontawesome.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.2/css/solid.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fancool.css', v=12) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/chart-renderer.css', v=1) }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/right-panel-v2.css', v=2) }}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="announcementBar" class="fc-announce hidden">
+    <div class="fc-announce-inner">
+      <span id="fcAnnounceText" class="fc-announce-text"></span>
+      <span class="fc-announce-gradient"></span>
+    </div>
+    <button id="fcAnnounceClose" class="fc-announce-close" type="button">&times;</button>
+  </div>
+  <div id="toastContainer"></div>
+
+  <!-- 左上角浮动侧栏按钮 -->
+  <button id="sidebar-toggle" class="sidebar-fab-toggle" aria-label="展开侧栏" title="展开/收起侧栏">
+    <span class="icon-sidebar" aria-hidden="true"></span>
+  </button>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="collapsed">
+    <div id="sidebar-resizer"></div>
+    <div id="sidebar-header">
+      <h1 class="text-xl font-bold text-center">数据管理</h1>
+    </div>
+
+    <!-- 上半区 -->
+    <div id="top-panel" class="fc-sidebar-panel">
+      <div class="fc-sidebar-panel__content">
+        <nav class="fc-tabs" data-tab-group="sidebar-top">
+          <div class="fc-tabs__item active" data-tab="recent-removed">浏览历史</div>
+          <div class="fc-tabs__item" data-tab="recent-liked">最近点赞</div>
+        </nav>
+
+        <div class="fc-tab-container" id="sidebar-top-container">
+          <div class="fc-tab-wrapper" id="sidebar-top-wrapper" aria-live="polite">
+            <!-- 浏览历史 -->
+            <div class="fc-tab-pane" id="recent-removed-pane">
+              <div id="recentlyRemovedList" class="space-y-2">
+                <p class="text-gray-500 text-center py-6 empty-removed">暂无浏览历史</p>
+              </div>
+            </div>
+            <!-- 最近点赞 -->
+            <div class="fc-tab-pane" id="recent-liked-pane">
+              <div id="recentLikesList" class="space-y-2">
+                <p class="text-gray-500 text-center py-6">首次打开该页签时加载...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- 主内容 -->
+  <main id="main-content">
+    <div class="container mx-auto px-4 pt-4 pb-4">
+      <header class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-blue-600 mb-2">风扇库</h1>
+        <p class="text-gray-600">一个风扇性能可视化查询&对比网站（评分不完全代表实际性能，只作为需求匹配度参考）</p>
+      </header>
+
+      <div class="fc-info-btn-wrap">
+        <a href="/source-info" data-track-id="link_source_info"
+           class="fc-info-btn bg-white text-gray-700 hover:text-blue-600 p-2 rounded-full shadow-md border border-gray-200 flex items-center justify-center"
+           title="数据来源与说明">
+          <i class="fa-solid fa-circle-info text-lg"></i>
+        </a>
+      </div>
+      <div class="fc-theme-toggle" id="themeToggle" title="切换深浅色">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </div>
+
+      <div id="main-panels" class="flex flex-col lg:flex-row gap-6 mb-6">
+        <!-- 左侧添加 / 搜索区域 -->
+        <div class="bg-white rounded-xl shadow-md p-6 lg:w-1/3" style="height: 600px;">
+          <nav class="fc-tabs" data-tab-group="left-panel">
+            <div class="fc-tabs__item active" data-tab="add-by-model">按型号添加</div>
+            <div class="fc-tabs__item" data-tab="filter-by-scenario">进阶搜索</div>
+          </nav>
+          <div class="fc-tab-container" id="left-panel-container">
+            <div class="fc-tab-wrapper" id="left-panel-wrapper">
+
+              <!-- 按型号添加 -->
+              <div class="fc-tab-pane" id="add-by-model-pane">
+                <form id="fanForm" class="fc-form-grid">
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">输入型号直接搜索</label>
+                    <div class="relative">
+                      <input type="text" id="modelSearchInput" class="fc-field w-full border-gray-300" placeholder="输入型号关键字...">
+                      <div id="searchSuggestions" class="absolute z-10 hidden bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto w-full mt-1"></div>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">品牌</label>
+                    <select id="brandSelect" class="fc-field w-full border-gray-300">
+                      <option value="">-- 选择品牌 --</option>
+                      {% for brand in brands %}
+                        <option value="{{ brand }}">{{ brand }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">型号（综合评分）</label>
+                    <select id="modelSelect" class="fc-field w-full border-gray-300" disabled>
+                      <option value="">-- 选择型号 --</option>
+                    </select>
+                    <div id="modelLoading" class="text-sm text-gray-500 mt-1 hidden">加载中...</div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">工况评分</label>
+                    <!-- 雷达图综合评分展示容器（只读） -->
+                    <div id="conditionMulti"
+                      class="w-full rounded-md p-1 bg-white fc-condition-multi fc-radar-multi" >
+                      <!-- 级联占位提示（默认显示） -->
+                      <div id="condPlaceholder" class="text-sm text-gray-500 flex items-center justify-center h-full">-- 请先选择品牌 --</div>
+                      <!-- 雷达图评分展示（加载完成后显示，只读） -->
+                      <div id="conditionRadarChart" class="hidden"></div>
+                      <div id="conditionLoading" class="text-sm text-gray-500 hidden">加载中...</div>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <button type="submit" class="w-full fc-btn fc-btn--success" style="font-size: 16px;">添加至对比</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- 按工况筛选 -->
+              <div class="fc-tab-pane" id="filter-by-scenario-pane">
+                <form id="searchForm" class="fc-form-grid">
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">工况筛选</label>
+                    <select name="condition_name" id="conditionFilterSelect" class="fc-field w-full border-gray-300">
+                      <option value="">-- 选择测试工况 --</option>
+                      {% for cond in all_conditions %}
+                        <option value="{{ cond }}">{{ cond }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- Row A: 尺寸(mm) 1/3 + 风扇厚度(mm) 2/3 -->
+                  <div class="fc-form-row">
+                    <div class="grid grid-cols-3 gap-3">
+                      <div class="col-span-1">
+                        <label class="block text-sm font-medium">尺寸(mm)</label>
+                        <select name="size_filter" class="fc-field w-full border-gray-300">
+                          {% for size in size_options %}
+                            <option value="{{ size }}">{{ size }}</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div class="col-span-2">
+                        <label class="block text-sm font-medium">风扇厚度(mm)</label>
+                        <div class="flex items-center gap-2">
+                          <input type="number" name="thickness_min" value="1" min="1" max="99" class="fc-field w-1/2 border-gray-300" required>
+                          <span class="text-gray-600">-</span>
+                          <input type="number" name="thickness_max" value="50" min="1" max="99" class="fc-field w-1/2 border-gray-300" required>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Row B: RGB灯光 1/3 + 参考价格(元) 2/3 -->
+                  <div class="fc-form-row">
+                    <div class="grid grid-cols-3 gap-3">
+                      <div class="col-span-1">
+                        <label class="block text-sm font-medium">RGB灯光</label>
+                        <select name="rgb_light" id="rgbLightSelect" class="fc-field w-full border-gray-300">
+                          <option value="不限">不限</option>
+                        </select>
+                      </div>
+                      <div class="col-span-2">
+                        <label class="block text-sm font-medium">参考价格(元)</label>
+                        <div class="flex items-center gap-2">
+                          <input type="number" name="price_min" value="0" min="0" max="999" step="1" class="fc-field w-1/2 border-gray-300" required>
+                          <span class="text-gray-600">-</span>
+                          <input type="number" name="price_max" value="999" min="0" max="999" step="1" class="fc-field w-1/2 border-gray-300" required>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 最大转速(RPM) -->
+                  <div class="fc-form-row">
+                    <label class="block text-sm font-medium">最大转速(RPM)</label>
+                    <div class="flex items-center gap-3">
+                      <input type="number" name="max_speed_min" value="1" min="1" max="9999" step="1" class="fc-field w-1/2 border-gray-300" required>
+                      <span class="text-gray-600">-</span>
+                      <input type="number" name="max_speed_max" value="9999" min="1" max="9999" step="1" class="fc-field w-1/2 border-gray-300" required>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-sm font-medium flex items-center">
+                          排序依据
+                          <button
+                            type="button"
+                            class="ml-1 cursor-help text-gray-400 hover:text-gray-600 focus:outline-none"
+                            data-tooltip="仅在“工况筛选”为非“综合性能”模式下可用。&lt;br&gt;工况评分：按该工况的单项评分排序。&lt;br&gt;全速风量：取风扇全速运行时的风量。&lt;br&gt;同转速风量：取转速限制以下的最高风量。&lt;br&gt;同分贝风量：取噪音限制以下的最高风量。"
+                            aria-label="排序依据说明">
+                            <i class="fa-solid fa-circle-info text-xs"></i>
+                          </button>
+                        </label>
+                        <select name="sort_by" id="sortBySelect" class="fc-field w-full border-gray-300">
+                          <option value="condition_score" selected>工况评分</option>
+                          <option value="none">全速风量</option>
+                          <option value="rpm">同转速风量</option>
+                          <option value="noise">同分贝风量</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium">限制值</label>
+                        <input type="number" inputmode="numeric" step="1" min="1" max="9999"
+                               name="sort_value" id="sortValueInput"
+                               class="fc-field w-full border-gray-300" disabled>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="fc-form-row">
+                    <button type="submit" class="w-full fc-btn" style="font-size: 16px;">搜索风扇</button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧排行榜 / 搜索结果 -->
+        <div class="bg-white rounded-xl shadow-md p-6 lg:w-2/3 fc-right-card relative">
+          <div class="fc-right-panel-header-row">
+            <div class="fc-right-panel-header-left">
+              <div class="fc-sps-dropdown" id="scoreProfileDropdown">
+                <select id="scoreProfileSelect" class="fc-sps-select" title="评分策略挡位">
+                  <option value="low">只在意中低转表现</option>
+                  <option value="med" selected>家用场景均衡策略</option>
+                  <option value="hi">高转速大风量优先</option>
+                </select>
+              </div>
+            
+              <button
+                type="button"
+                id="scoreRuleExplainBtn"
+                class="fc-sps-explain-btn fc-tooltip-target"
+                data-tooltip="评分规则说明"
+                aria-label="评分规则说明"
+              >
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+              </button>
+            </div>
+          
+            <div id="query-count-display" class="fc-right-query-count">
+              已执行查询<span id="query-count">0</span>次
+            </div>
+          </div>
+          <nav class="fc-tabs with-subseg" fc-tabs--with-subseg data-tab-group="right-panel">
+            <div class="fc-tabs__primary-group">
+              <div class="fc-tabs__item active" data-tab="top-queries">排行榜</div>
+              <div class="fc-tabs__item" data-tab="search-results">搜索结果</div>
+              <div class="fc-tabs__item" data-tab="recent-updates">近期更新</div>
+            </div>
+            <div class="flex-1"></div>
+            <div class="fc-tabs__subseg" id="rightSubsegContainer"></div>
+          </nav>
+          <div class="fc-tab-container" id="right-panel-container">
+            <div class="fc-tab-wrapper" id="right-panel-wrapper">
+              <!-- 排行榜 (Right Panel v2) -->
+              <div class="fc-tab-pane" id="top-queries-pane">
+                <div class="fc-seg" data-active="perf-board" role="tablist" aria-label="榜单切换">
+                  <button class="fc-seg__btn" data-target="heat-board" role="tab" aria-selected="false" aria-controls="heat-board">热度榜</button>
+                  <button class="fc-seg__btn is-active" data-target="perf-board" role="tab" aria-selected="true" aria-controls="perf-board">性能榜</button>
+                  <span class="fc-seg__thumb"></span>
+                </div>
+                <!-- v2 rankings container; populated by right-panel-v2.js -->
+                <div class="fc-rank-box" id="rpv2-rank-box">
+                  <div class="fc-rank-panel rpv2-board" id="heat-board" role="tabpanel" aria-label="热度榜">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table rpv2-table" id="rpv2-heat-table">
+                        <thead id="rpv2-heat-thead"></thead>
+                        <tbody id="rpv2-heat-tbody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div class="fc-rank-panel active rpv2-board" id="perf-board" role="tabpanel" aria-label="性能榜">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table rpv2-table" id="rpv2-perf-table">
+                        <thead id="rpv2-perf-thead"></thead>
+                        <tbody id="rpv2-perf-tbody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 搜索结果 (Right Panel v2 style) -->
+              <div class="fc-tab-pane" id="search-results-pane">
+                <div class="fc-rank-box" id="srp-rank-box">
+                  <div id="srp-summary-bar" class="srp-summary-bar" aria-live="polite"></div>
+                  <div class="fc-rank-panel active" id="srp-results-panel" role="tabpanel">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table rpv2-table" id="srp-results-table">
+                        <thead id="srp-thead"></thead>
+                        <tbody id="srp-tbody">
+                          <tr><td colspan="9" class="text-center text-gray-500 py-8" style="font-size: 14px;">使用按工况筛选进行搜索</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+                           <!-- 近期更新 (Right Panel v2 style) -->
+              <div class="fc-tab-pane" id="recent-updates-pane">
+                <div class="fc-rank-box" id="rup-rank-box">
+                  <div class="fc-rank-panel active" id="updates-panel" role="tabpanel" aria-label="近期更新">
+                    <div class="fc-rank-scroll">
+                      <table class="fc-rank-table rpv2-table" id="rup-table">
+                        <thead id="rup-thead"></thead>
+                        <tbody id="rup-tbody">
+                          <tr><td colspan="9" class="text-center text-gray-500 py-6" style="font-size:14px;">首次点击“近期更新”加载...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图表 -->
+      <div class="fc-chart-container bg-white rounded-xl shadow-md p-4 relative" id="chart-settings">
+        <!-- Upper area: radar overview (left, collapsible) + main chart (right) -->
+        <div class="chart-upper-row">
+          <!-- Left: Radar Overview Panel -->
+          <div id="radarOverviewPanel" class="radar-overview-panel">
+            <button class="radar-overview-toggle" type="button" aria-label="收起雷达图" aria-expanded="true">&#8249;</button>
+            <div class="radar-overview-content"></div>
+            <!-- Radar actions bar: inside radarOverviewPanel, centered at bottom (Part 7) -->
+            <div id="radarActionsBar" class="fc-radar-actions-bar">
+              <button id="radarActionsToggle" type="button" class="fc-radar-actions-trigger fc-tooltip-target" data-tooltip="重置雷达">
+                <i class="fa-solid fa-arrows-rotate"></i><span>重置</span>
+              </button>
+              <div id="radarActionsExpanded" class="fc-radar-actions-expanded" hidden>
+                <button id="clearRadarModels" type="button" class="fc-radar-action-btn">
+                  <i class="fa-solid fa-xmark"></i> 清空型号
+                </button>
+                <button id="clearRadarConds" type="button" class="fc-radar-action-btn">
+                  <i class="fa-solid fa-circle-minus"></i> 取消工况激活
+                </button>
+                <button id="resetRadarColors" type="button" class="fc-radar-action-btn fc-radar-action-btn--color">
+                  <i class="fa-solid fa-palette"></i> 重置配色
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Panel switcher: slides between extra panel (left) and main chart panel (right) -->
+          <div class="chart-panel-switcher">
+            <div class="chart-panel-track">
+              <!-- Extra content panel (review + gallery) — left slot -->
+              <div class="chart-extra-panel">
+                <div class="chart-extra-col">
+                  <div class="chart-extra-col-inner">
+                    <!-- Side-by-side row: review area (left) + gallery area (right) -->
+                    <div class="extra-panel-content-row">
+                      <!-- Left: Review section -->
+                      <div class="extra-panel-review-section">
+                        <div class="extra-panel-title">测试点评</div>
+                        <div class="extra-panel-review-body"></div>
+                      </div>
+                      <!-- Right: Gallery section -->
+                      <div class="extra-panel-gallery">
+                        <div class="gallery-title">图库&视频</div>
+                        <div class="gallery-scroll-area">
+                          <div class="gallery-video-panel" style="display:none;" aria-hidden="true" tabindex="0" role="button" aria-label="播放 B 站视频">
+                            <!-- Poster layer (visible initially, fades out when the video iframe is shown) -->
+                            <div class="gallery-video-poster">
+                              <img class="gallery-video-poster-img" src="" alt="视频封面" />
+                              <div class="gallery-video-play-btn" aria-label="播放 B 站视频">
+                                <div class="gallery-video-play-icon"></div>
+                              </div>
+                            </div>
+                            <!-- iframe layer: rendered underneath the poster on click -->
+                            <iframe class="gallery-video-iframe"
+                              src=""
+                              scrolling="no"
+                              border="0"
+                              frameborder="0"
+                              framespacing="0"
+                              allowfullscreen="true"
+                              allow="autoplay; fullscreen"
+                              referrerpolicy="strict-origin-when-cross-origin"
+                              style="display:none;"
+                              title="B 站视频播放">
+                            </iframe>
+                          </div>
+                          <div class="gallery-thumbs"></div>
+                          <div class="gallery-empty">暂无图片</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Main chart panel — right slot (visible by default) -->
+              <div class="chart-main-panel">
+                <div class="chart-main-col">
+                  <div class="chart-stack">
+                    <div id="chartRoot" style="width:100%;height:100%;position:relative;overflow:hidden;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Desktop arrow toggle: right-edge overlay, hidden in narrow mode -->
+            <button class="chart-panel-arrow" type="button" aria-label="展开点评/图库" aria-expanded="false">&#8250;</button>
+          </div>
+        </div>
+        <!-- Lower: Spectrum (full width) -->
+        <div id="spectrumHost">
+          <div class="spectrum-inner"></div>
+        </div>
+      </div>
+    </div>
+    <!-- 底部 Footer：无背景色，文字跟随主题 -->
+  <footer class="fc-site-footer">
+    <div class="container mx-auto px-4 py-2 text-sm flex flex-col md:flex-row gap-2 md:gap-4 md:items-center justify-between">
+      <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
+        <span>© {{ current_year or 2025 }} 风扇库</span>
+        <a 
+          href="https://beian.mps.gov.cn/#/query/webSearch?code=31011402021508" 
+          rel="noreferrer" 
+          target="_blank"
+          style="display: inline-flex; align-items: center; "
+        >
+          <img 
+            src="{{ url_for('static', filename='imgs/beian.png') }}" 
+            alt="备案图标" 
+            style="width: 16px; height: 16px; margin-right: 5px; "
+          > 
+          沪公网安备31011402021508号
+        </a>
+        <span>沪ICP备2025145529号-1</span>
+        <span>交流及反馈QQ群：1070155380</span>
+        <a href="https://github.com/CuriousPiPi/FancoolWebPublic.git" data-track-id="link_github_open_source" class="underline hover:text-blue-600">GitHub用户端代码开源</a>
+      </div>
+      <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+        <a href="/legal" class="underline hover:text-blue-600">版权及免责声明</a>
+      </div>
+    </div>
+  </footer>
+  </main>
+
+  <!-- Right Panel v2: rankings data (model-centric, heat + composite scores) -->
+  <script id="rpv2-data" type="application/json">{{ rankings_v2|tojson }}</script>
+
+  <!-- Gallery lightbox overlay -->
+  <div id="galleryLightbox" class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="图片预览">
+    <button class="gallery-lightbox-close" aria-label="关闭" id="galleryLightboxClose">&#10005;</button>
+    <div class="gallery-lightbox-content">
+      <button
+        type="button"
+        class="gallery-lightbox-nav gallery-lightbox-nav-prev"
+        id="galleryLightboxPrev"
+        aria-label="上一张"
+      >&#10094;</button>
+      <img class="gallery-lightbox-img" id="galleryLightboxImg" src="" alt="大图预览" />
+      <button
+        type="button"
+        class="gallery-lightbox-nav gallery-lightbox-nav-next"
+        id="galleryLightboxNext"
+        aria-label="下一张"
+      >&#10095;</button>
+      <div class="gallery-lightbox-counter" id="galleryLightboxCounter" role="status" aria-live="polite">0 / 0</div>
+      <div class="gallery-lightbox-bottom-nav" aria-label="图片切换">
+        <button type="button" id="galleryLightboxPrevBottom">上一张</button>
+        <button type="button" id="galleryLightboxNextBottom">下一张</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 评分规则说明弹层 -->
+  <div id="scoreRuleModal" class="fc-sr-modal" role="dialog" aria-modal="true" aria-label="评分规则说明" tabindex="-1" hidden>
+    <div class="fc-sr-backdrop" id="scoreRuleBackdrop"></div>
+    <div class="fc-sr-panel">
+      <div class="fc-sr-header">
+        <span class="fc-sr-title">评分规则说明</span>
+        <div class="fc-sr-tabs" role="tablist" id="scoreRuleTabs">
+          <button
+            type="button"
+            class="fc-sr-tab"
+            id="scoreRuleTab-low"
+            data-profile="low"
+            role="tab"
+            aria-selected="true"
+            aria-controls="scoreRuleBody"
+            tabindex="0"
+          >中低转优先</button>
+          <button
+            type="button"
+            class="fc-sr-tab"
+            id="scoreRuleTab-med"
+            data-profile="med"
+            role="tab"
+            aria-selected="false"
+            aria-controls="scoreRuleBody"
+            tabindex="-1"
+          >均衡策略</button>
+          <button
+            type="button"
+            class="fc-sr-tab"
+            id="scoreRuleTab-hi"
+            data-profile="hi"
+            role="tab"
+            aria-selected="false"
+            aria-controls="scoreRuleBody"
+            tabindex="-1"
+          >高转速优先</button>
+        </div>
+        <button type="button" class="fc-sr-close" id="scoreRuleClose" aria-label="关闭">&times;</button>
+      </div>
+      <p class="fc-sr-desc">以下为当前评分策略下使用的参考值、权重与换算公式，用于说明综合评分的来源。评分结果会随策略切换而变化。</p>
+      <div class="fc-sr-body" id="scoreRuleBody">
+        <div class="fc-sr-loading" id="scoreRuleLoading">加载中…</div>
+        <div class="fc-sr-table-wrap" id="scoreRuleTableWrap"></div>
+        <div class="fc-sr-footnote" id="scoreRuleFootnote"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='vendor/echarts/5.4.2/echarts.min.js') }}"></script>
+  <script src="{{ asset_url('app.js') }}"></script>
+  
+</body>
+</html>
