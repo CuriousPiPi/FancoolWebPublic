@@ -1,0 +1,1006 @@
+/* =========================================================
+   Right Panel v2 — Rankings tab (model-centric leaderboard)
+
+   Self-contained: no longer depends on right-panel.css.
+   Carries all layout, table, panel, animation, and typography
+   styles needed for the rankings tab to render correctly
+   even if right-panel.css is not loaded.
+
+   Scope: .rpv2-* classes, .fc-right-card (layout only),
+          #right-panel-container / #right-panel-wrapper
+   ========================================================= */
+
+/* -------------------------------------------------------
+   CSS variables — row height and panel dimensions
+   (mirror right-panel.css :root variables so removal is safe)
+   ------------------------------------------------------- */
+:root {
+  --rpv2-row-h: 43px;
+  /* Sum of fixed-width narrow-mode columns for the rankings board:
+     rank(44) + score-heat(126) + action(44) = 214px */
+  --rpv2-narrow-fixed-w: 214px;
+  /* Minimum width of the 型号信息 column in narrow mode (shared by all 3 tables).
+     When fixed-cols + this value exceeds the available container width, the
+     .fc-rank-scroll overflow:auto will produce a horizontal scrollbar.
+     Adjust this value to control how aggressively the column can be compressed. */
+  --rpv2-narrow-model-min-w: 80px;
+}
+
+/* -------------------------------------------------------
+   Right-card container — height, flex direction
+   (ensures rankings tab has correct dimensions without right-panel.css)
+   ------------------------------------------------------- */
+.fc-right-card {
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  min-height: 0;
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .fc-right-card { height: clamp(500px, 80vh, 600px); }
+}
+
+/* Tab nav spacing */
+.fc-right-card > nav.fc-tabs { margin-bottom: 6px; }
+
+/* -------------------------------------------------------
+   Right-panel scroll-snap container
+   ------------------------------------------------------- */
+#right-panel-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+}
+#right-panel-container::-webkit-scrollbar { display: none; }
+
+#right-panel-wrapper {
+  display: flex;
+  width: auto;
+  min-width: 100%;
+  height: 100%;
+}
+#right-panel-wrapper .fc-tab-pane {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* -------------------------------------------------------
+   Content height chain — tab-container → tab-wrapper → tab-pane → rank-box
+   ------------------------------------------------------- */
+.fc-right-card .fc-tab-container {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.fc-right-card .fc-tab-wrapper,
+.fc-right-card .fc-tab-pane {
+  height: 100%;
+}
+.fc-right-card .fc-tab-pane {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.fc-right-card .fc-rank-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* -------------------------------------------------------
+   Board panel (fc-rank-panel) visibility and transitions
+   ------------------------------------------------------- */
+.fc-right-card .fc-rank-panel {
+  display: none;
+}
+.fc-right-card .fc-rank-panel.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  animation: rpv2FadePanelIn 0.3s ease;
+}
+.fc-right-card .fc-rank-panel.active.is-leaving {
+  position: absolute;
+  inset: 0;
+  animation: rpv2FadePanelOut 0.25s ease forwards;
+}
+
+@keyframes rpv2FadePanelIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes rpv2FadePanelOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* -------------------------------------------------------
+   Scroll area
+   ------------------------------------------------------- */
+.fc-right-card .fc-rank-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  max-height: none !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+@supports not (scrollbar-gutter: stable) {
+  .fc-right-card .fc-rank-scroll { padding-right: var(--sbw, 8px); }
+}
+.fc-right-card .fc-rank-scroll::-webkit-scrollbar { width: 8px; }
+.fc-right-card .fc-rank-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color, #e5e7eb);
+  border-radius: 4px;
+}
+.fc-right-card .fc-rank-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #6b7280);
+}
+
+/* -------------------------------------------------------
+   Narrow layout (rp-narrow class set by JS ResizeObserver)
+   ------------------------------------------------------- */
+.fc-right-card.rp-narrow > nav.fc-tabs {
+  flex-wrap: wrap;
+  row-gap: 8px;
+  column-gap: 10px;
+  align-items: flex-start;
+}
+.fc-right-card.rp-narrow > nav.fc-tabs .flex-1 { display: none; }
+.fc-right-card.rp-narrow > nav.fc-tabs .fc-tabs__item {
+  flex: 1 1 calc(50% - 10px);
+  text-align: center;
+  padding: .55rem .8rem;
+}
+.fc-right-card.rp-narrow .fc-tabs__subseg {
+  order: 3;
+  flex: 1 1 100%;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+.fc-right-card.rp-narrow .fc-rank-box { padding-top: 0; }
+.fc-right-card.rp-narrow > nav.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group {
+  flex: 1 1 100%;
+  width: 100%;
+  justify-content: space-between;
+}
+.fc-right-card.rp-narrow > nav.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group .fc-tabs__item {
+  flex: 1 1 0 !important;
+  text-align: center;
+}
+
+/* -------------------------------------------------------
+   Tab nav for right panel (shared with right-panel.css, duplicated for self-sufficiency)
+   ------------------------------------------------------- */
+.fc-tabs[data-tab-group="right-panel"] {
+  flex-wrap: wrap;
+}
+.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group .fc-tabs__item {
+  flex: 0 0 auto !important;
+}
+
+/* -------------------------------------------------------
+   Rankings table — complete self-contained table styles
+   ------------------------------------------------------- */
+.rpv2-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.rpv2-table th,
+.rpv2-table td {
+  vertical-align: middle;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 5px 8px;
+  box-sizing: border-box;
+}
+
+.rpv2-table th {
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+  white-space: nowrap;
+  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-secondary, #fff);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 8px;
+}
+[data-theme="dark"] .rpv2-table th {
+  color: #9ca3af;
+  border-bottom-color: #374151;
+  background: #202b39;
+  box-shadow: 0 2px 3px -1px var(--shadow-color, rgba(0,0,0,0.15));
+}
+
+/* Row height: controlled via height on non-expand rows */
+.rpv2-table tbody .rpv2-main-row > td {
+  height: var(--rpv2-row-h, 43px);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Row hover */
+.rpv2-table tr:hover { background: var(--hover-overlay, rgba(0,0,0,0.03)); }
+[data-theme="dark"] .rpv2-table tr:hover { background: var(--hover-overlay, rgba(255,255,255,0.04)) !important; }
+
+/* -------------------------------------------------------
+   Rank cell
+   ------------------------------------------------------- */
+.rpv2-rank-cell {
+  width: 44px;
+  text-align: center;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+/* Medal colors — self-contained (no longer relying on right-panel.css) */
+.rpv2-medal-gold, .rpv2-medal-silver, .rpv2-medal-bronze {
+  font-size: 18px;
+  vertical-align: middle;
+}
+.rpv2-medal-gold   { color: var(--medal-gold,   #FFD700) !important; }
+.rpv2-medal-silver { color: var(--medal-silver,  #C0C0C0) !important; }
+.rpv2-medal-bronze { color: var(--medal-bronze,  #CD7F32) !important; }
+.rpv2-rank-num { font-weight: 500; }
+
+/* -------------------------------------------------------
+   Score badge — layout only; colors are applied inline
+   via ScoreBadgeHelper (continuous Oklab gradient).
+   ------------------------------------------------------- */
+.rpv2-score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+/* -------------------------------------------------------
+   Score + Heat column cell
+   ------------------------------------------------------- */
+.rpv2-score-heat-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.rpv2-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #374151);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.rpv2-expand-btn:hover {
+  color: var(--fc-color-primary, #2563eb);
+  background: rgba(37, 99, 235, 0.08);
+}
+.rpv2-expand-btn .fa-chevron-right {
+  font-size: 13px;
+  font-weight: 900;
+  transition: transform 0.2s ease;
+}
+.rpv2-expand-btn[aria-expanded="true"] .fa-chevron-right {
+  transform: rotate(90deg);
+}
+
+.rpv2-sep {
+  color: var(--text-secondary, #6b7280);
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 1px;
+  line-height: 1;
+}
+
+.rpv2-heat-val {
+  color: #ea580c;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------
+   综合评分·热度 column alignment — header indented to align
+   with the score badge (expand button is ~26px wide + gap)
+   ------------------------------------------------------- */
+.rpv2-score-heat-th {
+  white-space: nowrap;
+  text-align: left;
+}
+/* Header: add left padding so the text aligns with the badge content */
+.rpv2-table th.rpv2-score-heat-th {
+  padding-left: 13px !important;
+}
+
+/* -------------------------------------------------------
+   操作 column — compact, centered via flex wrapper
+   Override any legacy last-child rules from right-panel.css.
+   ------------------------------------------------------- */
+.rpv2-table th.rpv2-action-cell,
+.rpv2-table td.rpv2-action-cell {
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+  text-align: center !important;
+  /* Override sticky positioning from right-panel.css last-child rule */
+  position: static !important;
+  background: transparent !important;
+}
+.rpv2-table thead th.rpv2-action-cell {
+  /* Sticky header still needs sticky positioning */
+  position: sticky !important;
+  background: var(--bg-secondary, #fff) !important;
+}
+[data-theme="dark"] .rpv2-table thead th.rpv2-action-cell {
+  background: #202b39 !important;
+}
+
+/* Flex wrapper centers the button horizontally without relying on text-align */
+.rpv2-action-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* -------------------------------------------------------
+   参考价 column — right-aligned for easy vertical comparison,
+   with right padding to separate it from the next column
+   ------------------------------------------------------- */
+.rpv2-table th.rpv2-col-price,
+.rpv2-table td.rpv2-col-price {
+  text-align: right !important;
+  padding-right: 14px !important;
+}
+
+/* -------------------------------------------------------
+   Expand row — smooth open/close via JS-driven height animation
+   (scrollHeight measured at open time; transitions height 0↔px).
+   The TR is always display:table-row; height is controlled by
+   the inner wrapper div. JS sets display:none on the TD after
+   the close animation ends to guarantee full collapse.
+   ------------------------------------------------------- */
+.rpv2-expand-row {
+  /* always table-row — never display:none — height controlled by wrapper */
+}
+
+.rpv2-expand-td {
+  padding: 0 !important;
+  overflow: hidden;
+  border: none !important;
+  /* Override legacy right-panel.css :last-child and non-subrow rules */
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  position: static !important;
+  background: transparent !important;
+  text-align: left !important;
+}
+
+/* Wrapper whose height is JS-driven (scrollHeight-based animation).
+   overflow:hidden clips the inner content during open/close.
+   height:0 is the closed resting state; JS overrides it during animation. */
+.rpv2-expand-td-wrap {
+  overflow: hidden;
+  height: 0;
+}
+
+/* Inner content — no overflow:hidden or min-height:0 needed here */
+.rpv2-expand-inner {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  padding: 10px 12px;
+  background: var(--bg-primary, #f9fafb);
+  border-top: 1px dashed #e5e7eb;
+  box-sizing: border-box;
+}
+[data-theme="dark"] .rpv2-expand-inner {
+  background: #1e2937;
+  border-top-color: #374151;
+}
+
+/* Separator between expand row and next main row */
+.rpv2-expand-row.is-open + .rpv2-main-row td,
+.rpv2-expand-row.is-open + .rpv2-main-row th {
+  border-top: 1px solid #e5e7eb;
+}
+[data-theme="dark"] .rpv2-expand-row.is-open + .rpv2-main-row td {
+  border-top-color: #374151;
+}
+
+/* -------------------------------------------------------
+   Mini radar side — borderless, fits inside expand panel
+   ------------------------------------------------------- */
+.rpv2-mini-radar-col {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rpv2-mini-radar-body {
+  width: 100%;
+  max-width: 350px;
+  overflow: hidden;
+}
+.rpv2-mini-radar-body svg.fc-radar-svg {
+  width: 100%;
+  height: auto;
+  max-height: 130px;
+  display: block;
+}
+
+/* -------------------------------------------------------
+   Heat breakdown side
+   ------------------------------------------------------- */
+.rpv2-heat-breakdown-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  gap: 6px;
+  /* Side whitespace so bars don't feel stretched edge-to-edge */
+  padding: 0 20px;
+}
+
+/* "工况热度" compact vertical label on the LEFT */
+.rpv2-heat-breakdown-title {
+  flex: 0 0 auto;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  letter-spacing: 0.05em;
+  align-self: center;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+[data-theme="dark"] .rpv2-heat-breakdown-title { color: #9ca3af; }
+
+/* Condition rows list — CSS grid with shared label column.
+   grid-template-columns: max-content 1fr
+     col 1 = label column, sized to the widest label in the group (shared across all rows)
+     col 2 = bar area, takes remaining space
+   Each .rpv2-cond-row uses display:contents so its two children become direct grid items,
+   ensuring all bars start from the same aligned x-position regardless of label length. */
+.rpv2-cond-rows {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 6px;
+  row-gap: 2px;
+  align-items: center;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.rpv2-cond-row {
+  display: contents;
+}
+
+.rpv2-cond-name {
+  font-size: 14px;
+  color: var(--text-primary, #374151);
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: right;
+}
+[data-theme="dark"] .rpv2-cond-name { color: #d1d5db; }
+
+/* Bar area: flex container holding the track + label.
+   No background track — each bar stands on its own length. */
+.rpv2-cond-bar-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Fixed-width track container: clips the colored fill so it can never
+   overflow the bar area. max-width keeps the chart compact; the fill
+   percentage is still visually meaningful (hottest cond = full track). */
+.rpv2-cond-bar-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 350px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: transparent; /* no gray remainder track */
+}
+
+/* Colored bar fill: width set by JS (normalized to local max condition heat). */
+.rpv2-cond-bar-fill {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--fc-color-primary, #2563eb);
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Percentage label sits directly after the bar */
+.rpv2-cond-pct {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .rpv2-cond-pct { color: #9ca3af; }
+
+/* Mini radar placeholder */
+.rpv2-mini-radar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 90px;
+  background: var(--bg-secondary, #fff);
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  color: #9ca3af;
+  font-size: 11px;
+  text-align: center;
+  gap: 4px;
+}
+[data-theme="dark"] .rpv2-mini-radar-placeholder {
+  background: #202b39;
+  border-color: #374151;
+  color: #6b7280;
+}
+
+/* -------------------------------------------------------
+   Wide/narrow responsive column visibility
+   ------------------------------------------------------- */
+
+/* Narrow-info column: hidden by default */
+.rpv2-col-narrow-info { display: none; }
+
+/* Narrow layout: hide wide columns, show compact info column */
+.fc-right-card.rp-narrow .rpv2-table .rpv2-col-wide,
+.fc-right-card.rp-narrow .rpv2-table .rpv2-col-model-name-wide {
+  display: none;
+}
+.fc-right-card.rp-narrow .rpv2-table .rpv2-col-narrow-info {
+  display: table-cell;
+}
+.fc-right-card.rp-narrow .rpv2-expand-inner {
+  flex-direction: column;
+}
+.fc-right-card.rp-narrow .rpv2-mini-radar-col {
+  flex: 1 1 100%;
+  max-width: 100%;
+  width: 100%;
+}
+.fc-right-card.rp-narrow .rpv2-heat-breakdown-col {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+  .rpv2-table .rpv2-col-wide,
+  .rpv2-table .rpv2-col-model-name-wide { display: none; }
+  .rpv2-table .rpv2-col-narrow-info     { display: table-cell; }
+  .rpv2-expand-inner { flex-direction: column; }
+  .rpv2-mini-radar-col  { flex: 1 1 100%; max-width: 100%; width: 100%; }
+  .rpv2-heat-breakdown-col { flex: 1 1 100%; max-width: 100%; }
+
+  /* Mobile: right panel tab nav */
+  .fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group {
+    flex: 1 1 100%;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .fc-tabs[data-tab-group="right-panel"] .fc-tabs__primary-group .fc-tabs__item {
+    flex: 1 1 0 !important;
+    text-align: center;
+  }
+
+  /* Mobile: table-layout:fixed + narrow-mode layout for all three tables.
+     td.rpv2-col-narrow-info min-width is advisory; actual floor enforced via
+     each table's min-width (see below).  Column widths mirror the .rp-narrow
+     block defined earlier; duplicate here so the 600px media-query path also
+     applies correct column proportions even when the card's rp-narrow class
+     has not yet been computed by JS. */
+  .rpv2-table td.rpv2-col-narrow-info {
+    min-width: var(--rpv2-narrow-model-min-w);
+    overflow: hidden;
+  }
+  .rpv2-board .rpv2-table {
+    table-layout: fixed;
+    min-width: calc(var(--rpv2-narrow-fixed-w) + var(--rpv2-narrow-model-min-w));
+  }
+  #srp-results-table,
+  #rup-table {
+    table-layout: fixed;
+  }
+  /* 搜索结果 min-width (mirrors .fc-right-card.rp-narrow rules) */
+  /* 默认（风量模式 none/rpm/noise）: score(140) + col-b(50) + action(36) = 226px */
+  #srp-results-table {
+    min-width: calc(226px + var(--rpv2-narrow-model-min-w));
+  }
+  /* 工况评分 / 综合评分模式: score(140) + action(36) = 176px */
+  #srp-results-table[data-sort-by="condition_score"],
+  #srp-results-table[data-sort-by="composite_score"] {
+    min-width: calc(176px + var(--rpv2-narrow-model-min-w));
+  }
+  /* 近期更新 min-width */
+  #rup-table {
+    min-width: calc(172px + var(--rpv2-narrow-model-min-w));
+  }
+  .rpv2-table th,
+  .rpv2-table td {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  .rpv2-table th.rpv2-score-heat-th {
+    padding-left: 8px !important;
+  }
+
+  /* Mirror narrow-mode col rules (same as .rp-narrow block above).
+     Wide-only cols are not in the narrow colgroup, so only rank/narrow/score/action
+     need explicit widths here. */
+  .rpv2-board .rpv2-table col.rpv2-cg-rank   { width:  44px; }
+  .rpv2-board .rpv2-table col.rpv2-cg-narrow { width: auto;  }
+  .rpv2-board .rpv2-table col.rpv2-cg-score  { width: 126px; }
+  .rpv2-board .rpv2-table col.rpv2-cg-action { width:  44px; }
+  /* 搜索结果 colgroup widths (JS injects mode-specific colgroups; col-a not included in narrow) */
+  #srp-results-table col.rpv2-cg-narrow  { width: auto;  }
+  #srp-results-table col.rpv2-cg-score   { width: 140px; }
+  #srp-results-table col.rpv2-cg-col-b   { width:  50px; }
+  #srp-results-table col.rpv2-cg-action  { width:  36px; }
+  /* 近期更新 colgroup widths */
+  #rup-table col.rpv2-cg-narrow  { width: auto;  }
+  #rup-table col.rpv2-cg-score   { width: 128px; }
+  #rup-table col.rpv2-cg-action  { width:  44px; }
+}
+
+/* -------------------------------------------------------
+   Compact model info (narrow layout)
+   ------------------------------------------------------- */
+.rpv2-model-info-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+.rpv2-model-info-compact .rpv2-mi-name {
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.rpv2-model-info-compact .rpv2-mi-sub {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+[data-theme="dark"] .rpv2-model-info-compact .rpv2-mi-sub { color: #9ca3af; }
+
+/* RPM annotation inside narrow compact name — slightly smaller/lighter than the name text */
+.rpv2-model-info-compact .rpv2-max-speed {
+  font-size: 10px;
+  font-weight: 400;
+}
+
+/* Adaptive compression for the 型号信息 column on narrow card widths.
+   Uses table-layout: fixed on all three tables (board, search, recent-updates)
+   so that the colgroup drives column widths and the 型号信息 column (rpv2-cg-narrow,
+   width:auto) absorbs remaining space.  Each table also sets min-width = fixed-cols
+   + --rpv2-narrow-model-min-w so the scroll container produces a horizontal
+   scrollbar only when truly necessary.
+   See the "窄屏模式固定列宽集中定义" section below for per-table pixel values. */
+.fc-right-card.rp-narrow .rpv2-table td.rpv2-col-narrow-info {
+  /* min-width here is advisory; actual enforcement comes from each table's min-width. */
+  min-width: var(--rpv2-narrow-model-min-w);
+  overflow: hidden;
+}
+.fc-right-card.rp-narrow .rpv2-board .rpv2-table {
+  table-layout: fixed;
+  /* 排行榜最小宽度 = 固定列合计(214px) + 型号信息最小宽度 */
+  min-width: calc(var(--rpv2-narrow-fixed-w) + var(--rpv2-narrow-model-min-w));
+}
+/* Search results and recent-updates also use table-layout:fixed in narrow mode
+   so that the elastic 型号信息 column is properly constrained and touch-marquee
+   overflow detection (scrollWidth > clientWidth) works correctly. */
+.fc-right-card.rp-narrow #srp-results-table,
+.fc-right-card.rp-narrow #rup-table {
+  table-layout: fixed;
+}
+.fc-right-card.rp-narrow .rpv2-table th,
+.fc-right-card.rp-narrow .rpv2-table td {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+.fc-right-card.rp-narrow .rpv2-table th.rpv2-score-heat-th {
+  padding-left: 8px !important;
+}
+
+/* -------------------------------------------------------
+   窄屏模式固定列宽集中定义 (Narrow-mode fixed column widths)
+
+   策略：
+   · 固定列（排名、评分、操作等）使用明确的 px 宽度，保证内容完整显示。
+   · 型号信息列 (rpv2-cg-narrow) 使用 width:auto，在 table-layout:fixed
+     下自动吸收固定列以外的剩余空间。
+   · 各表格 min-width = 固定列合计 + --rpv2-narrow-model-min-w，确保型号
+     信息列永远不会被压缩到最小宽度以下；只有当可用宽度不足时，
+     .fc-rank-scroll 的 overflow:auto 才会产生横向滚动条。
+
+   如需调整宽度，直接修改下方各行的 px 值，无需改动 JS 逻辑。
+   ------------------------------------------------------- */
+
+/* 排行榜 (4 cols: 排名 | 型号信息 | 综合评分·热度 | 操作)
+   固定列合计: 44 + 126 + 44 = 214px (= --rpv2-narrow-fixed-w)    */
+.fc-right-card.rp-narrow .rpv2-board .rpv2-table col.rpv2-cg-rank   { width:  32px; } /* 排名         */
+.fc-right-card.rp-narrow .rpv2-board .rpv2-table col.rpv2-cg-narrow { width: auto;  } /* 型号信息（弹性）*/
+.fc-right-card.rp-narrow .rpv2-board .rpv2-table col.rpv2-cg-score  { width: 140px; } /* 综合评分·热度 */
+.fc-right-card.rp-narrow .rpv2-board .rpv2-table col.rpv2-cg-action { width:  36px; } /* 操作         */
+
+/* 搜索结果 — col 宽度（每个排序模式的 colgroup 仅含可见列，匹配 JS CONDITION/AIRFLOW_NARROW_COL_DEFS）
+   · 工况评分模式 (condition_score):  3 cols: narrow(auto) + score(140) + action(36) = 176px 固定
+   · 风量排序模式 (none/rpm/noise):   4 cols: narrow(auto) + score(140) + col-b(50) + action(36) = 226px 固定
+   · 综合评分模式 (composite_score):  3 cols: narrow(auto) + score(140) + action(36) = 176px (独立 colgroup)
+   JS 不同模式注入不同 colgroup，因此下面的 col 规则只需覆盖对应类名即可。 */
+.fc-right-card.rp-narrow #srp-results-table col.rpv2-cg-narrow  { width: auto;  } /* 型号信息（弹性）*/
+.fc-right-card.rp-narrow #srp-results-table col.rpv2-cg-score   { width: 140px; } /* 综合·工况评分  */
+.fc-right-card.rp-narrow #srp-results-table col.rpv2-cg-col-b   { width:  64px; } /* 风量（仅风量模式）*/
+.fc-right-card.rp-narrow #srp-results-table col.rpv2-cg-action  { width:  36px; } /* 操作           */
+/* 搜索结果最小宽度，按各模式可见固定列总宽计算 */
+/* 默认（风量模式 none/rpm/noise）: score(140) + col-b(50) + action(36) = 226px */
+.fc-right-card.rp-narrow #srp-results-table {
+  min-width: calc(226px + var(--rpv2-narrow-model-min-w));
+}
+/* 工况评分 / 综合评分模式: score(140) + action(36) = 176px */
+.fc-right-card.rp-narrow #srp-results-table[data-sort-by="condition_score"],
+.fc-right-card.rp-narrow #srp-results-table[data-sort-by="composite_score"] {
+  min-width: calc(176px + var(--rpv2-narrow-model-min-w));
+}
+
+/* 近期更新 (3 cols: 型号信息 | 综合评分·热度 | 操作)
+   固定列合计: 128 + 44 = 172px                                    */
+.fc-right-card.rp-narrow #rup-table col.rpv2-cg-narrow  { width: auto;  } /* 型号信息（弹性）*/
+.fc-right-card.rp-narrow #rup-table col.rpv2-cg-score   { width: 140px; } /* 综合评分·热度  */
+.fc-right-card.rp-narrow #rup-table col.rpv2-cg-action  { width:  36px; } /* 操作           */
+/* 近期更新最小宽度 = 固定列合计 172px + 型号信息最小宽度 */
+.fc-right-card.rp-narrow #rup-table {
+  min-width: calc(172px + var(--rpv2-narrow-model-min-w));
+}
+
+/* -------------------------------------------------------
+   Max-speed annotation after model name (wide layout)
+   ------------------------------------------------------- */
+.rpv2-max-speed {
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+[data-theme="dark"] .rpv2-max-speed { color: #9ca3af; }
+
+/* -------------------------------------------------------
+   型号 column max-width — wide (non-narrow) mode only.
+   Prevents a long model name from stretching the whole table.
+   The existing overflow:hidden + text-overflow:ellipsis on
+   .rpv2-table td handles the visual truncation; the marquee
+   wrapper reveals the full text on hover.
+   ------------------------------------------------------- */
+.fc-right-card:not(.rp-narrow) .rpv2-table th.rpv2-col-model-name-wide,
+.fc-right-card:not(.rp-narrow) .rpv2-table td.rpv2-col-model-name-wide {
+  max-width: 200px;
+}
+
+/* Marquee clip container */
+.rpv2-model-name-wrap {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* Inner text node — slides left on hover when text genuinely overflows */
+.rpv2-model-name-inner {
+  display: inline-block;
+  white-space: nowrap;
+  transition: transform 0.35s ease;
+}
+
+/* Inner text for narrow-mode touch marquee — slides left when touch held */
+.rpv2-mi-name-inner {
+  display: inline-block;
+  white-space: nowrap;
+  transition: transform 0.35s ease;
+}
+
+/* -------------------------------------------------------
+   Search results v2 — search summary bar above the table
+   ------------------------------------------------------- */
+.srp-summary-bar {
+  flex-shrink: 0;
+  padding: 3px 10px 4px;
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  line-height: 1.4;
+}
+.srp-summary-bar:empty { display: none; }
+[data-theme="dark"] .srp-summary-bar { color: #9ca3af; }
+
+/* -------------------------------------------------------
+   Search results v2 — fixed combined score column
+   ------------------------------------------------------- */
+
+/* 综合 · 工况评分 column header in search results: same indentation as rankings */
+#srp-thead th.rpv2-score-heat-th {
+  padding-left: 13px !important;
+}
+
+/* Condition score badge + separator inside the combined score cell */
+.srp-cond-score-sep {
+  color: var(--text-secondary, #6b7280);
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 1px;
+  line-height: 1;
+}
+.srp-cond-score-badge {
+  /* inherits rpv2-score-badge styles */
+}
+
+/* -------------------------------------------------------
+   Search results v2 — col-A and col-B trailing columns
+   Right-align both header and body cells.
+   !important is required because .rpv2-table th { text-align: left } has
+   higher specificity (element + class) than a bare class selector.
+   padding-right !important overrides .rpv2-table th/td { padding: … }.
+   ------------------------------------------------------- */
+.rpv2-table th.srp-col-A,
+.rpv2-table td.srp-col-A,
+.rpv2-table th.srp-col-B,
+.rpv2-table td.srp-col-B {
+  white-space: nowrap;
+  font-size: 13px;
+  text-align: right !important;
+}
+
+/* Extra breathing room between col-B and the action column */
+.rpv2-table th.srp-col-B,
+.rpv2-table td.srp-col-B {
+  padding-right: 20px !important;
+}
+
+/* Source tag: 原始 / 拟合 */
+.srp-src-tag {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 3px;
+  vertical-align: middle;
+  line-height: 1.6;
+}
+.srp-src-tag[data-src="raw"] {
+  background: #dcfce7;
+  color: #15803d;
+}
+.srp-src-tag[data-src="fit"] {
+  background: #fef9c3;
+  color: #92400e;
+}
+[data-theme="dark"] .srp-src-tag[data-src="raw"] { background: #166534; color: #bbf7d0; }
+[data-theme="dark"] .srp-src-tag[data-src="fit"] { background: #78350f; color: #fde68a; }
+
+/* Airflow value (col-B) */
+.srp-val-airflow {
+  color: #2563eb;
+  font-weight: 600;
+}
+[data-theme="dark"] .srp-val-airflow { color: #60a5fa; }
+
+/* Secondary value (e.g. max dB in condition_score mode) */
+.srp-val-secondary {
+  color: var(--text-secondary, #6b7280);
+  font-size: 13px;
+}
+[data-theme="dark"] .srp-val-secondary { color: #9ca3af; }
+
+/* -------------------------------------------------------
+   Search results v2 — narrow-screen column rules
+   (driven by data-sort-by attribute set by JS on #srp-results-table)
+   ------------------------------------------------------- */
+
+/* Narrow + condition_score: hide both col-A and col-B */
+.fc-right-card.rp-narrow #srp-results-table[data-sort-by="condition_score"] th.srp-col-A,
+.fc-right-card.rp-narrow #srp-results-table[data-sort-by="condition_score"] td.srp-col-A,
+.fc-right-card.rp-narrow #srp-results-table[data-sort-by="condition_score"] th.srp-col-B,
+.fc-right-card.rp-narrow #srp-results-table[data-sort-by="condition_score"] td.srp-col-B {
+  display: none;
+}
+
+/* Narrow + non-condition_score: hide col-A only, keep col-B (风量CFM) */
+.fc-right-card.rp-narrow #srp-results-table:not([data-sort-by="condition_score"]) th.srp-col-A,
+.fc-right-card.rp-narrow #srp-results-table:not([data-sort-by="condition_score"]) td.srp-col-A {
+  display: none;
+}
+
+/* 风量排序模式（窄屏）综合·工况评分列: 保持与工况评分模式一致，同时显示综合分和工况分
+   （不再隐藏 srp-cond-score-sep / srp-cond-score-badge） */
+
+/* Mirror narrow rules at narrow media query breakpoint */
+@media (max-width: 600px) {
+  #srp-results-table[data-sort-by="condition_score"] th.srp-col-A,
+  #srp-results-table[data-sort-by="condition_score"] td.srp-col-A,
+  #srp-results-table[data-sort-by="condition_score"] th.srp-col-B,
+  #srp-results-table[data-sort-by="condition_score"] td.srp-col-B { display: none; }
+
+  #srp-results-table:not([data-sort-by="condition_score"]) th.srp-col-A,
+  #srp-results-table:not([data-sort-by="condition_score"]) td.srp-col-A { display: none; }
+
+
+}
