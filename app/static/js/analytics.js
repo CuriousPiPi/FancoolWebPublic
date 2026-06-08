@@ -1,0 +1,281 @@
+/* Analytics: visit_start + generic event + query logging
+   - Sends /api/visit_start once per session (includes initial theme)
+   - Exposes window.Analytics.{logEvent,logCurvePairs,logRadarModels,initVisitStartOnce}
+   - Auto-tracks:
+     * click_source_info on /source-info link
+     * click_github_link on GitHub repo link
+     * click_theme_toggle when theme toggle button clicked (records target theme)
+     * click_ladder_open when ladder modal open button clicked
+     * click_ladder_download when ladder download button clicked (records ladder type/name/date)
+     * contextmenu_ladder_canvas on right-click / long-press of ladder canvas (best-effort save signal)
+*/
+(function initAnalytics() {
+  const PAGE_KEY = 'home';
+  const EP = {
+    visitStart: '/api/visit_start',
+    logEvent: '/api/log_event',
+    curveSet: '/api/curve_set',
+    radarModels: '/api/radar_models',
+    advancedSearch: '/api/log_advanced_search'
+  };
+
+  function jsonBeacon(url, payload) {
+    try {
+      const data = JSON.stringify(payload || {});
+      if (navigator.sendBeacon) {
+        const blob = new Blob([data], { type: 'application/json' });
+        return navigator.sendBeacon(url, blob);
+      }
+      // Fallback
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: data,
+        keepalive: true
+      }).catch(() => {});
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function initVisitStartOnce() {
+    try {
+      if (sessionStorage.getItem('visit_started') === '1') return;
+    } catch (_) {}
+    const theme = document.documentElement.getAttribute('data-theme') || 'light';
+    const payload = {
+      screen_w: (typeof screen !== 'undefined' && screen.width) || null,
+      screen_h: (typeof screen !== 'undefined' && screen.height) || null,
+      device_pixel_ratio: (typeof window !== 'undefined' && window.devicePixelRatio) || null,
+      language: (typeof navigator !== 'undefined' && (navigator.languages && navigator.languages[0])) || (navigator.language || null),
+      is_touch: (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)),
+      theme
+    };
+    fetch(EP.visitStart, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch((err) => { console.error("Analytics visit_start failed:", err); }).finally(() => {
+      try { sessionStorage.setItem('visit_started', '1'); } catch (_) {}
+    });
+  }
+
+  function logEvent({ event_type_code, page_key = PAGE_KEY, target_url = null, model_id, condition_id, payload_json } = {}) {
+    if (!event_type_code) return;
+    const payload = {
+      event_type_code: String(event_type_code).slice(0, 64),
+      page_key: String(page_key || PAGE_KEY).slice(0, 64),
+      target_url: (target_url == null || target_url === '') ? null : String(target_url).slice(0, 512)
+    };
+    if (model_id != null) payload.model_id = model_id;
+    if (condition_id != null) payload.condition_id = condition_id;
+    if (payload_json != null) payload.payload_json = payload_json;
+    jsonBeacon(EP.logEvent, payload);
+  }
+
+  // Throttle cache for click_play_audio: key -> last timestamp
+  const _playAudioThrottleCache = {};
+  const PLAY_AUDIO_THROTTLE_MS = 1000;
+  const PLAY_AUDIO_THROTTLE_MAX_KEYS = 200;
+
+  function logPlayAudio(modelId, conditionId, xAxisMode, pointerX, rpm, db) {
+    const roundedRpm = Math.round(rpm);
+    const roundedDb = db != null ? Math.round(db * 10) / 10 : null;
+    // rpm mode: round pointer_x to integer; db mode: round to 0.1
+    const roundedX = (xAxisMode === 'db') ? Math.round(pointerX * 10) / 10 : Math.round(pointerX);
+    const key = `${modelId}|${conditionId}|${xAxisMode}|${roundedX}|${roundedRpm}|${roundedDb}`;
+    const now = Date.now();
+    if (_playAudioThrottleCache[key] && now - _playAudioThrottleCache[key] < PLAY_AUDIO_THROTTLE_MS) return;
+    // Evict oldest entries when cache grows too large
+    const keys = Object.keys(_playAudioThrottleCache);
+    if (keys.length >= PLAY_AUDIO_THROTTLE_MAX_KEYS) {
+      const oldest = keys.sort((a, b) => _playAudioThrottleCache[a] - _playAudioThrottleCache[b]);
+      for (let i = 0; i < Math.floor(PLAY_AUDIO_THROTTLE_MAX_KEYS / 2); i++) delete _playAudioThrottleCache[oldest[i]];
+    }
+    _playAudioThrottleCache[key] = now;
+    logEvent({
+      event_type_code: 'click_play_audio',
+      model_id: modelId,
+      condition_id: conditionId,
+      payload_json: { x_axis_mode: xAxisMode, pointer_x: roundedX, rpm: roundedRpm, db: roundedDb }
+    });
+  }
+
+  /**
+   * Canonical curve-set logging. Sends curve diff to /api/curve_set.
+   * eventType must be one of:
+   *   condition_activate / restore / model_show / model_add
+   *   condition_inactivate / model_remove / model_hide / radar_clear_all / reset_condition
+   * source: string, actionId: optional shared batch token
+   */
+  function logCurvePairs(eventType, pairs, source, actionId) {
+    try {
+      const cleaned = Array.isArray(pairs) ? pairs.map(p => ({
+        model_id: Number(p.model_id),
+        condition_id: Number(p.condition_id)
+      })).filter(p => Number.isInteger(p.model_id) && Number.isInteger(p.condition_id)) : [];
+      if (!cleaned.length) return;
+
+      const payload = {
+        event_type: String(eventType || '').slice(0, 32),
+        pairs: cleaned,
+      };
+      if (source) payload.source = String(source).slice(0, 64);
+      if (actionId) payload.action_id = String(actionId).slice(0, 64);
+      jsonBeacon(EP.curveSet, payload);
+    } catch (_) {}
+  }
+
+  // action: 'add'|'remove'|'restore'|'clear_all', modelId: number|null, source: string, actionId: string|null
+  function logRadarModels(action, modelId, source, actionId) {
+    try {
+      const payload = { action: String(action).slice(0, 32) };
+      if (modelId != null) payload.model_id = Number(modelId);
+      if (source) payload.source = String(source).slice(0, 64);
+      if (actionId) payload.action_id = String(actionId).slice(0, 64);
+      jsonBeacon(EP.radarModels, payload);
+    } catch (_) {}
+  }
+
+  function logAdvancedSearch(payload, meta = {}) {
+    jsonBeacon(EP.advancedSearch, {
+      payload: payload || {},
+      is_default: !!meta.is_default
+    });
+  }
+
+  // Auto-wire: run visit_start once
+  initVisitStartOnce();
+
+  // Auto-track clicks for two anchors via data-track-id
+  document.addEventListener('click', (e) => {
+    const aInfo = e.target.closest && e.target.closest('a[data-track-id="link_source_info"]');
+    if (aInfo) {
+      logEvent({ event_type_code: 'click_source_info', target_url: '/source-info' });
+    }
+  }, true);
+
+  document.addEventListener('click', (e) => {
+    const aGit = e.target.closest && e.target.closest('a[data-track-id="link_github_open_source"]');
+    if (aGit) {
+      const href = aGit.getAttribute('href') || '';
+      logEvent({ event_type_code: 'click_github_link', target_url: href });
+    }
+  }, true);
+
+  // Auto-track theme toggle button
+  (function hookThemeToggle() {
+    const btn = document.getElementById('themeToggle');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      try {
+        // Infer target theme (toggle)
+        const curr = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = (curr === 'light') ? 'dark' : 'light';
+        logEvent({ event_type_code: 'click_theme_toggle', target_url: 'theme:' + next });
+      } catch (_) {}
+    });
+  })();
+
+  // 右侧面板“展开/收起工况”按钮埋点（仅在将要展开时记录）
+  document.addEventListener('click', (e) => {
+    const toggle = e.target.closest && e.target.closest('.fc-expand-toggle');
+    if (!toggle) return;
+    const willExpand = toggle.getAttribute('aria-expanded') !== 'true';
+    if (!willExpand) return;
+
+    // 取所在行的 model_id
+    const tr = toggle.closest('tr');
+    const mid = tr && tr.dataset && tr.dataset.modelId ? parseInt(tr.dataset.modelId, 10) : null;
+
+    // 事件名：click_right_panel_expander；把 model_id 写到 extra payload
+    logEvent({ event_type_code: 'click_right_panel_expander', ...(mid != null ? { model_id: mid } : {}) });
+  }, true);
+  
+  // 天梯图打点：打开弹窗、下载图片、右键 canvas
+  (function hookLadderAnalytics() {
+    const LADDER_DISPLAY_NAMES = {
+      composite: '风扇库综合天梯图',
+      intake_exhaust: '风扇库进排气天梯图',
+      radiator: '风扇库吹冷排天梯图',
+    };
+    const LADDER_CONTEXTMENU_THROTTLE_MS = 10000;
+    let lastLadderContextmenu = { key: null, ts: 0 };
+
+    function getActiveLadderTab() {
+      return document.querySelector('#ladderTabs .fc-sr-tab.active')
+        || document.querySelector('#ladderTabs .fc-sr-tab[aria-selected="true"]');
+    }
+
+    function extractLadderDate() {
+      const hint = document.getElementById('ladderUpdateHint');
+      const text = ((hint && hint.textContent) || '').trim();
+      if (!text) return null;
+      const marker = '当前榜单日期：';
+      const idx = text.indexOf(marker);
+      if (idx >= 0) return text.slice(idx + marker.length).trim() || null;
+      const match = text.match(/\d{4}[-/]\d{1,2}[-/]\d{1,2}/);
+      return match ? match[0] : null;
+    }
+
+    function getLadderMeta(extra) {
+      const tab = getActiveLadderTab();
+      const ladderType = ((tab && tab.getAttribute('data-ladder')) || '').trim() || 'composite';
+      const ladderName = LADDER_DISPLAY_NAMES[ladderType] || ((tab && tab.textContent) || '').trim() || ladderType;
+      const meta = {
+        ladder_type: ladderType,
+        ladder_name: ladderName,
+        ladder_date: extractLadderDate(),
+      };
+      if (extra && typeof extra === 'object') Object.assign(meta, extra);
+      return meta;
+    }
+
+    function shouldLogLadderContextmenu(meta) {
+      const key = [
+        meta && meta.ladder_type ? meta.ladder_type : '',
+        meta && meta.ladder_name ? meta.ladder_name : '',
+        meta && meta.ladder_date ? meta.ladder_date : ''
+      ].join('|');
+      const now = Date.now();
+      if (lastLadderContextmenu.key === key && now - lastLadderContextmenu.ts < LADDER_CONTEXTMENU_THROTTLE_MS) {
+        return false;
+      }
+      lastLadderContextmenu = { key, ts: now };
+      return true;
+    }
+
+    // 点击右侧面板「天梯图」按钮 / 弹窗内「下载图片」按钮
+    document.addEventListener('click', (e) => {
+      if (!e.target || !e.target.closest) return;
+      if (e.target.closest('#ladderOpenBtn')) {
+        try { logEvent({ event_type_code: 'click_ladder_open', payload_json: { source: 'open_button' } }); } catch (_) {}
+      } else if (e.target.closest('#ladderDownloadBtn')) {
+        try { logEvent({ event_type_code: 'click_ladder_download', payload_json: getLadderMeta({ source: 'download_button' }) }); } catch (_) {}
+      }
+    }, true);
+
+    // 右键/长按天梯图 canvas（尽力打点，不阻止默认行为）
+    document.addEventListener('contextmenu', (e) => {
+      if (e.target && e.target.closest && e.target.closest('#ladderCanvas')) {
+        try {
+          const meta = getLadderMeta({ source: 'canvas_contextmenu' });
+          if (!shouldLogLadderContextmenu(meta)) return;
+          logEvent({ event_type_code: 'contextmenu_ladder_canvas', payload_json: meta });
+        } catch (_) {}
+      }
+    }, true);
+  })();
+
+  // Expose API
+  window.Analytics = {
+    initVisitStartOnce,
+    logEvent,
+    logPlayAudio,
+    logCurvePairs,
+    logRadarModels,
+    logAdvancedSearch
+  };
+})();
