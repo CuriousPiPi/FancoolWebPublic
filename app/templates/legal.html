@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>版权及免责声明 - 风扇库</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fancool.css') }}">
+  <style>
+    .legal-container h1 { font-size:1.9rem; font-weight:700; margin-bottom:1.2rem; }
+    .legal-container h2 { font-size:1.25rem; font-weight:600; margin-top:2rem; margin-bottom:.75rem; }
+    .legal-container p  { line-height:1.65; margin-bottom:.85rem; font-size:0.95rem; }
+    .legal-container ul { list-style:disc; padding-left:1.3rem; margin-bottom:1rem; }
+    .legal-container li { line-height:1.55; margin:.35rem 0; }
+    .legal-meta { font-size:.8rem; opacity:.75; margin-top:2.2rem; }
+    a.inline-link { text-decoration:underline; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-3xl legal-container">
+    <a href="/" class="inline-block mb-6 px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition" title="返回主页">
+      ← 返回主页
+    </a>
+
+    <h1>版权及免责声明</h1>
+    <p>欢迎访问“风扇库”（下称“本站”）。在使用本站提供的各项功能与数据前，请仔细阅读本页内容。继续使用即表示你同意并接受以下条款。</p>
+
+    <h2>一、版权声明</h2>
+    <p>1. 本网站内所有内容（包括但不限于风扇测试数据、图表、文字描述、图片、网站设计、程序代码等）均为网站运营方独立创作或拥有合法权利的内容。除法律另有规定外，本网站对上述内容享有完整的著作权、数据库权利及其他相关知识产权。未经本网站书面许可，任何单位或个人不得擅自复制、转载、摘编、传播、镜像、修改本网站内容，或用于商业用途（包括但不限于用于产品宣传、研发参考并从中获利等）。非商业性引用时，需明确标注来源为 “风扇库” 并保留本版权声明，否则视为侵权。如发现侵权行为，本网站将依法追究侵权方的法律责任。<br>
+       2. 站内所引用之品牌名称、型号名称、商标等，其权利归各自所属权利人所有，仅用于客观描述与对比，不代表本站与其存在商业合作或背书关系。<br>
+       3. 若你认为本站某些内容可能涉及侵权，请使用页面底部提供的联系方式告知，我们将在核实后及时处理。</p>
+
+    <h2>二、数据来源与使用限制</h2>
+    <p>1. 数据主要来源于本站维护者基于现场测试所得(<a class="inline-link" href="/source-info">数据来源与说明</a>)，部分可能参考公开资料或厂商文档。<br>
+       2. 由于测试仪器精度、环境条件、样品个体差异等因素，数据存在一定误差，仅供爱好者技术交流与非商业参考。<br>
+       3. 未经许可请勿将本站测试结果直接用于商业广告、官方对外发布或可能引导消费者决策的正式材料。</p>
+
+    <h2>三、免责声明</h2>
+    <p>1. 本站力求数据与说明的客观准确，但不对其完整性、实时性、适用性做出任何保证。使用者据此做出的行为或决定造成的任何直接或间接损失，本站不承担责任。<br>
+       2. 本站可能因维护、服务器故障、不可抗力等原因暂时中断或停止服务，对由此造成的损失不承担赔偿责任。<br>
+       3. 对第三方链接（若存在）所指向内容的合法性、真实性与可用性不承担审查义务与责任。</p>
+
+    <h2>四、合理使用与引用</h2>
+    <p>1. 你可以在非商业前提下引用少量数据或截图，用于讨论、研究、论坛分享，但需注明来源：“数据来源：风扇库”。<br>
+       2. 批量数据抓取、自动化脚本高频访问等行为会对本站服务质量造成影响，本站保留采取限制或屏蔽措施的权利。</p>
+
+    <h2>五、隐私与 Cookies</h2>
+    <p>本站可能使用必要的 Cookies 以维持会话或统计访问。我们不会主动收集可直接识别个人身份的敏感信息。若未来政策调整，将在本页更新。</p>
+
+    <h2>六、条款更新</h2>
+    <p>本站有权根据需要随时更新本页面内容。更新后条款一经公布即自动生效，请定期查阅。</p>
+
+    <h2>七、联系方式</h2>
+    <p>如有版权、合作、数据纠错、侵权投诉等，请发送邮件至：<a class="inline-link" href="541112159@qq.com">541112159@qq.com</a>。</p>
+
+    <div class="legal-meta">
+      最新更新日期：{{ update_date or '2025-10-08' }}<br>
+      © {{ current_year or 2026 }} 风扇库. 保留部分权利。
+    </div>
+
+    <div class="mt-8">
+      <a href="/" class="underline hover:text-blue-600">返回主页</a>
+    </div>
+  </div>
+
+  <footer class="text-center text-xs py-6 opacity-70">
+    © {{ current_year or 2026 }} 风扇库 | <a href="/legal" class="underline">版权及免责声明</a>
+  </footer>
+</body>
+</html>
