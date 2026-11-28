@@ -1,0 +1,87 @@
+{
+  "version": "server-2026.11-5",
+  "tuning": {
+    "rootStrength": 0.3,
+    "hubFriction": 0.5,
+    "bearingInitialResistance": 0.00015,
+    "bearingResistanceSlope": 0.000001,
+    "ccwFingerForce": 2,
+    "cwFingerForce": 0.3,
+    "fingerCompression": 5,
+    "coggingStrength": 0.002,
+    "rotorInertia": 0.00006,
+    "windNoiseGain": 50,
+    "bladeToneGain": 100,
+    "ballRustleGain": 0.2,
+    "airflowSoundExponent": 2.5
+  },
+  "airflow": {
+    "referenceRpm": 3000,
+    "referenceCfm": 100,
+    "earningRpmCap": 3000,
+    "missingBladeExponent": 1.5,
+    "imbalancePenalty": 0.15
+  },
+  "sweat": {
+    "fullPressSeconds": 120,
+    "recoverSeconds": 60,
+    "referenceSpeed": 0.7,
+    "peakAt": 0.4,
+    "peakBoost": 0.2,
+    "soakedFriction": 0.65
+  },
+  "gearImpact": {"thresholdMs": 1, "durabilityPerMs2": 2},
+  "materials": {
+    "print3d": {
+      "name": "3D 打印 PETG", "price": 0, "printSeconds": 30,
+      "rootStrength": 0.4, "friction": 1.2, "inertia": 0.8, "airflow": 0.9,
+      "note": "层间结合弱、表面粗糙：好拨但易断，叶型精度差，风量较低。"
+    },
+    "pbt": {
+      "name": "PBT（玻纤增强）", "price": 30,
+      "rootStrength": 1, "friction": 1, "inertia": 1, "airflow": 0.97,
+      "note": "常见量产风扇材质，各项均衡；本页调试参数以它为基准。"
+    },
+    "lcp": {
+      "name": "LCP 液晶聚合物", "price": 100,
+      "rootStrength": 1.4, "friction": 0.9, "inertia": 1.2, "airflow": 1,
+      "note": "刚性高，叶片可做薄、叶尖间隙更小；表面光滑，较难拨快。"
+    }
+  },
+  "bearings": {
+    "sleeve": {
+      "name": "含油轴承", "price": 0, "resistance": 1, "lifeTurns": 5000, "wearA": 3, "wearP": 2,
+      "service": {"label": "补油", "cost": 2, "keepWearFraction": 0.3},
+      "note": "便宜常见；润滑油逐渐流失后阻力上升较早，补油可部分恢复。"
+    },
+    "fdb": {
+      "name": "液压轴承（FDB）", "price": 50, "resistance": 0.7, "lifeTurns": 7000, "wearA": 2, "wearP": 4,
+      "service": {"label": "更换", "cost": 25, "keepWearFraction": 0},
+      "note": "油膜承载、阻力低且安静；前期几乎不衰减，寿命末期快速变差。"
+    },
+    "ball": {
+      "name": "双滚珠轴承", "price": 80, "resistance": 0.85, "lifeTurns": 20000, "wearA": 1.5, "wearP": 1.5,
+      "service": {"label": "更换", "cost": 40, "keepWearFraction": 0},
+      "note": "寿命最长、耐高温；阻力略高于 FDB，磨损过程最平缓。"
+    }
+  },
+  "hands": {
+    "hand": {
+      "name": "裸手", "price": 0, "friction": 1, "sweatEffect": 1, "compressionBonusMm": 0,
+      "note": "按住操作时会出汗：微湿时摩擦略升，汗多后明显打滑。松手休息或用止滑粉。"
+    },
+    "cots": {
+      "name": "防滑指套", "price": 20, "replaceCost": 8, "contactMinutes": 30,
+      "friction": 1.3, "sweatEffect": 0.3, "compressionBonusMm": 1,
+      "note": "橡胶指套增加摩擦并隔开大部分汗液；按接触时间和冲击磨损。"
+    },
+    "gloves": {
+      "name": "橡胶手套", "price": 60, "replaceCost": 25, "contactMinutes": 120,
+      "friction": 1.2, "sweatEffect": 0.05, "compressionBonusMm": 3,
+      "note": "几乎不受汗影响，更厚的缓冲更护叶片；手感变钝。"
+    }
+  },
+  "consumables": {
+    "powder": {"name": "止滑粉", "price": 1, "pressSeconds": 90}
+  }
+}

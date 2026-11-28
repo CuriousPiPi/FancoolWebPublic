@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN" data-fan-game="production">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta id="themeColor" name="theme-color" content="#f9fafb">
+  <title>转风扇挑战 · FanCool</title>
+  <script>
+    window.__FC_MULTI_LANG_ENABLED = {{ multi_lang_enabled | tojson }};
+    window.__FAN_GAME_DEBUG = {{ fan_game_debug | tojson }};
+  </script>
+  <script>
+    (() => {
+      let theme;
+      try {
+        theme = window.localStorage.getItem("theme");
+      } catch (error) {
+        console.warn("无法读取主题偏好，将使用系统主题。", error);
+      }
+      if (theme !== "light" && theme !== "dark") {
+        theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fan-game.css') }}">
+
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <div class="brand"><a class="brand-mark" href="/?view=workspace" aria-label="返回主页">F</a><span data-i18n="game.title">转风扇挑战</span></div>
+      <div class="topline-actions">
+        <a class="theme-toggle home-link" href="/?view=workspace" data-i18n="site.home">返回主页</a>
+        <button class="theme-toggle" id="soundToggle" type="button" aria-pressed="false">音效：开启</button>
+        <button class="theme-toggle" id="themeToggle" type="button">切换主题</button>
+      </div>
+    </div>
+
+    <div class="readout-actions">
+      <details class="status-panel" id="statusPanel">
+        <summary><span><span data-i18n="game.status">状态与耐久</span> <span aria-hidden="true">⌃</span></span><span class="status-overview" id="statusOverview"></span></summary>
+        <div class="status-content" id="statusContent">
+          <div class="status-content-head"><strong data-i18n="game.status">状态与耐久</strong><button id="statusClose" class="theme-toggle" type="button" data-i18n="game.close">关闭</button></div>
+          <div class="condition-grid" id="conditionGrid"></div>
+        </div>
+      </details>
+      <p class="status-hint" id="statusHint" hidden data-i18n="game.hint">点击这里查看耐久，快速更换叶轮和装备。</p>
+      <button class="workshop-open" id="workshopOpen" type="button"><span data-i18n="game.workshop">风扇工坊</span> · <span id="workshopBalance">0</span> ft³</button>
+    </div>
+
+    <header class="intro">
+      <p class="kicker">INTERACTIVE FAN EXPERIMENT</p>
+      <h1 data-i18n="game.title">转风扇挑战</h1>
+      <p data-i18n="game.description">以常见 120 mm 电脑风扇为参考。亲手拨动扇叶，感受转速、惯性与摩擦的变化。</p>
+    </header>
+
+    <section class="console" aria-label="风扇拨动试玩">
+      <div class="visual-panel">
+        <div class="panel-heading"><span>120 × 120 mm · 7-BLADE</span><span>前掠叶型 / 逆时针</span></div>
+        <div class="fan-stage">
+          <canvas id="fan" aria-label="可交互风扇，可顺逆时针绕中心划动，按住叶片可挡停"></canvas>
+        </div>
+      </div>
+
+      <div class="readout-panel">
+        <div class="readout-top">
+          <span>LIVE TELEMETRY</span>
+          <span class="live-indicator" id="liveIndicator">待机</span>
+        </div>
+
+        <div>
+          <div class="rpm-label">实时转速</div>
+          <div class="rpm-value" id="rpmValue"><span id="rpm">0</span><small>RPM</small></div>
+          <div class="speed-track" role="progressbar" aria-label="转速" aria-valuemin="-300" aria-valuemax="3000" aria-valuenow="0" id="speedProgress">
+            <span class="speed-zero" aria-hidden="true"></span><span id="speedFill"></span>
+          </div>
+          <div class="scale"><span>−300 RPM</span><span class="scale-zero">0</span><span>3000 RPM</span></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="metric-row">
+          <div>
+            <div class="turn-label" data-i18n="game.airflow">实时风量</div>
+            <div class="turn-value"><span id="cfmNow">0.0</span><small>CFM</small></div>
+          </div>
+          <div>
+            <div class="turn-label" data-i18n="game.turns">累计圈数</div>
+            <div class="turn-value"><span id="turns">0.00</span><small>圈</small></div>
+          </div>
+          <div>
+            <div class="turn-label" data-i18n="game.todayBest">今日最高</div>
+            <div class="turn-value"><span id="todayMaxRpm">0</span><small>RPM</small></div>
+          </div>
+          <div>
+            <div class="turn-label" data-i18n="game.best">历史最高</div>
+            <div class="turn-value"><span id="bestRpm">0</span><small>RPM</small></div>
+          </div>
+        </div>
+
+        <div class="status-dock" id="statusDock" aria-label="状态与耐久"></div>
+        <p class="message" id="message" aria-live="polite">正在读取服务器存档…</p>
+        <button class="theme-toggle" id="gameRetry" type="button" hidden>重新连接</button>
+      </div>
+    </section>
+
+    <section class="workshop" id="workshop" aria-label="风扇工坊">
+      <div class="workshop-head">
+        <button class="workshop-close" id="workshopClose" type="button" aria-label="返回风扇">← 返回</button>
+        <h2 data-i18n="game.workshop">风扇工坊</h2>
+        <div class="balance" title="CFM 是每分钟立方英尺；余额按累计风量以 ft³ 计"><span id="balanceValue">0</span><small>ft³</small></div>
+      </div>
+      <div class="stat-strip">
+        <span><span data-i18n="game.todayAirflow">今日风量</span> <b id="todayAirflow">0</b> ft³</span>
+        <span><span data-i18n="game.totalAirflow">累计风量</span> <b id="totalAirflow">0</b> ft³</span>
+        <span><span data-i18n="game.todayPeakAirflow">今日最大瞬时风量</span> <b id="todayMaxAirflow">0.0</b> CFM</span>
+        <span><span data-i18n="game.bestAirflow">历史最大瞬时风量</span> <b id="bestAirflow">0.0</b> CFM</span>
+      </div>
+      <section class="server-records" aria-label="服务器记录">
+        <h3>服务器记录</h3>
+        <div class="server-records-grid">
+          <div><span>今日最高转速</span><strong><span id="serverTodayRpm">—</span> <small>RPM</small></strong></div>
+          <div><span>本周最高转速</span><strong><span id="serverWeekRpm">—</span> <small>RPM</small></strong></div>
+          <div><span data-i18n="game.todayPeakAirflow">今日最大瞬时风量</span><strong><span id="serverTodayAirflow">—</span> <small>CFM</small></strong></div>
+          <div><span data-i18n="game.weekPeakAirflow">本周最大瞬时风量</span><strong><span id="serverWeekAirflow">—</span> <small>CFM</small></strong></div>
+          <div><span>今日最多圈数</span><strong><span id="serverTodayTurns">—</span> <small>圈</small></strong></div>
+          <div><span>本周最多圈数</span><strong><span id="serverWeekTurns">—</span> <small>圈</small></strong></div>
+        </div>
+        <p>正转最高转速及最大瞬时风量；圈数按玩家累计。上海时间，每周一重置。</p>
+      </section>
+      <p class="shop-status" id="shopStatus" role="status">正转时按风量积累 ft³（3000 RPM 基准 100 CFM，超出部分不计收益）。</p>
+      <div id="shopSections"></div>
+      <p class="footnote" data-i18n="game.modelNote">模型仅用于交互手感，不代表真实硬件测量。</p>
+      <p class="sync-status" id="gameSyncStatus" role="status">进度绑定此浏览器的 cookie；清除 cookie 后将无法找回。未同步收益不可消费。</p>
+
+    </section>
+  </main>
+
+  <script src="{{ asset_url('fanChallenge.js') }}" defer></script>
+
+</body>
+</html>

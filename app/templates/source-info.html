@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title data-i18n="sourceInfo.pageTitle">数据来源与说明 - 风扇库</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+  <script>
+    (function () {
+      const multiLangEnabled = {{ multi_lang_enabled|tojson }};
+      window.__FC_MULTI_LANG_ENABLED = multiLangEnabled;
+      const langKey = 'fc_lang';
+      let lang = multiLangEnabled ? null : 'zh';
+      if (multiLangEnabled) {
+        try {
+          const saved = String(localStorage.getItem(langKey) || '').trim().toLowerCase();
+          if (saved === 'en' || saved === 'zh') lang = saved;
+        } catch (_) {}
+        if (!lang) {
+          lang = 'zh';
+          try {
+            const langs = navigator.languages;
+            const preferred = String((langs && langs[0]) || '').trim()
+              || String(navigator.language || '').trim()
+              || String(navigator.userLanguage || '').trim();
+            if (preferred) lang = /^zh(?:-|$)/i.test(preferred) ? 'zh' : 'en';
+          } catch (_) {}
+        }
+      }
+      window.__FC_INITIAL_LANG = lang;
+      document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+      document.documentElement.dataset.fcLang = lang;
+      let savedTheme = null;
+      try { savedTheme = localStorage.getItem('theme'); } catch (_) {}
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+      document.title = lang === 'en' ? 'Data Sources & Test Environment - FanCool DB' : '数据来源与说明 - 风扇库';
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fancool.css') }}">
+  <script src="{{ url_for('static', filename='js/fancool-i18n.js') }}"></script>
+  <style>
+    .source-container { max-width: 1160px; line-height: 1.8; }
+    .source-container h1, .source-container h2, .source-container h3 { line-height: 1.35; }
+    .source-container h2 { margin: 60px 0 16px; font-size: 1.45rem; font-weight: 600; color: var(--fc-color-primary); }
+    .source-container h3 { margin: 0 0 10px; font-size: 1.17rem; font-weight: 600; }
+    .source-container p { margin: 10px 0; }
+    .hero-img { display: block; width: 100%; max-width: 1100px; height: auto; margin: 24px auto 8px; border-radius: 14px; }
+    .equipment { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 24px 0; }
+    .source-card, .test-case, .radiator-detail { border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-secondary); }
+    .source-card { overflow: hidden; }
+    .source-card img { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; display: block; background: #edeff1; }
+    .source-card-content { padding: 16px 18px 20px; }
+    .source-card-content p, .test-case > p { color: var(--text-secondary); }
+    .test-case { margin: 20px 0; padding: 22px; }
+    .photo-pair { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; gap: 18px; margin-top: 16px; }
+    .source-container figure { margin: 0; min-width: 0; }
+    .source-container figure img { display: block; width: 100%; height: auto; border: 1px solid var(--border-color); border-radius: 10px; }
+    .test-pair figure:first-child img { aspect-ratio: 4 / 3; object-fit: cover; object-position: right center; }
+    .test-pair .portrait img { aspect-ratio: 2 / 3; }
+    .source-container figcaption { margin-top: 6px; color: var(--text-secondary); font-size: .88rem; }
+    .radiator-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: center; margin: 24px 0; padding: 20px 24px; }
+    .radiator-detail img { max-width: 500px; }
+    .howl-pair { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+    @media (max-width: 700px) {
+      .equipment, .radiator-detail { grid-template-columns: 1fr; }
+      .test-pair { gap: 8px; }
+      .test-case { padding: 16px; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <main class="source-container mx-auto px-4 py-8">
+    <a href="/?view=workspace" class="inline-block mb-6 px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition" data-i18n-title="site.home" title="返回主页">← <span data-i18n="site.home">返回主页</span></a>
+    <h1 class="text-2xl font-bold mb-6 text-blue-600" data-i18n="sourceInfo.title">数据来源与测试环境说明</h1>
+
+    <img src="/static/imgs/source-info/free-airflow.webp" alt="风量测试装置" data-i18n-alt="sourceInfo.airflowEquipment" class="hero-img" width="1200" height="800">
+    <p data-i18n="sourceInfo.airflowCaption">↑风量测量装置如上图所示↑</p>
+    <p data-i18n="sourceInfo.tunnel">风洞设计部分参考amca-210标准，由整流段、渐缩段、测量段、扩散段组成。风扇出风侧连接风洞入口。</p>
+    <p data-i18n="sourceInfo.airflowMethod">测试时使用波形发生器发出指定占空比的方波对风扇进行调速，使用示波器连接风扇测速线测量风扇转速，使用Testo425热敏式风速仪测量风速并通过计算转换成风量（标定时采用径向多点等面积法测量风速并得到标定风量）。</p>
+    <img src="/static/imgs/source-info/sound-environment.webp" alt="声学测试环境" data-i18n-alt="sourceInfo.soundEnvironment" class="hero-img" width="900" height="1050" loading="lazy">
+    <p data-i18n="sourceInfo.soundCaption">↑噪音测试环境如上图所示↑</p>
+    <p data-i18n="sourceInfo.soundSetup">风扇固定于隔振平台支架上。风扇出风侧前方&gt;60cm净空，进风侧前方&gt;40cm净空。</p>
+    <p data-i18n="sourceInfo.soundMethod">测试环境本底噪音低于8dBA，使用爱华AWA5662专业声级计采集噪音数据，声级探头固定于风扇上方距离风扇外框顶部30cm处。</p>
+
+    <h2 data-i18n="sourceInfo.faq">常见问答（Q&amp;A）</h2>
+    <p><strong data-i18n="sourceInfo.probeQuestion">Q: 为什么声级探头平行于风扇旋转面而不是常见的正对风扇旋转面？</strong><br>
+      <span data-i18n="sourceInfo.probeAnswer">A: 考虑到风扇在不同工况下安装方向不同，可能进风侧朝外也可能出风侧朝外，且负载也可能安装在风扇任意侧。把声级探头固定在平行于风扇旋转面的方向上可以兼顾两侧的收音以适应各种工况。需要注意的是这个方案下收音效果和传统正对旋转面的方案会有些许差异。</span></p>
+    <p><strong data-i18n="sourceInfo.specQuestion">Q: 为什么有些型号的空载数据和官方标称不一样？</strong><br>
+      <span data-i18n="sourceInfo.specAnswer">A: 不同厂家可能采用了不同的测试标准和环境，因此导致了数据的差异。并且我们的风洞为被动式风洞，会有少许风量损失。空载风量数值以官方数据为准，我们的测试结果仅供参考。</span></p>
+
+    <h2 data-i18n="sourceInfo.tests">测试项目展示</h2>
+    <p data-i18n="sourceInfo.intro">以下展示测试所用的阻抗件和六种测试工况。各工况分别进行风量测试与噪音测试；示例照片中的风扇为猫头鹰 A12x25 G2。</p>
+    <h3 data-i18n="sourceInfo.equipment">测试用阻抗件</h3>
+    <div class="equipment">
+      <article class="source-card">
+        <img src="/static/imgs/source-info/panels.webp" alt="排气面板和进气面板，排气面板在左，进气面板在右" data-i18n-alt="sourceInfo.panelsAlt" width="1200" height="800" loading="lazy">
+        <div class="source-card-content"><h3 data-i18n="sourceInfo.panels">排气与进气面板</h3><p data-i18n="sourceInfo.panelsDescription">排气面板开孔率为 70%；进气面板使用 34 目 PET 网，并带有 10 mm 垫高。</p></div>
+      </article>
+      <article class="source-card">
+        <img src="/static/imgs/source-info/tower.webp" alt="Arctic Freezer 36 风冷塔体" data-i18n-alt="sourceInfo.towerAlt" width="1200" height="800" loading="lazy">
+        <div class="source-card-content"><h3 data-i18n="sourceInfo.tower">风冷塔体</h3><p data-i18n="sourceInfo.towerDescription">测试使用 Arctic Freezer 36 风冷塔体。</p></div>
+      </article>
+      <article class="source-card">
+        <img src="/static/imgs/source-info/radiator.webp" alt="测试用冷排" data-i18n-alt="sourceInfo.radiatorAlt" width="1200" height="800" loading="lazy">
+        <div class="source-card-content"><h3 data-i18n="sourceInfo.radiator">冷排</h3><p data-i18n="sourceInfo.radiatorDescription">总厚度 27 mm，芯体厚度 20 mm，鳍片密度 20 FPI。</p></div>
+      </article>
+    </div>
+
+    <h3 data-i18n="sourceInfo.conditions">六种测试工况</h3>
+    <p data-i18n="sourceInfo.pairDescription">每组左侧为风量测试，右侧为噪音测试。</p>
+    {% set cases = [
+      ('free', '空载', '不加装阻抗件，展示风扇空载测试状态。'),
+      ('intake', '进气', '模拟风扇通过机箱进气面板进风的场景。'),
+      ('exhaust', '排气', '模拟风扇通过机箱排气面板排风的场景。'),
+      ('tower', '风冷', '风扇搭配风冷塔体进行测试。'),
+      ('push', '吹冷排', '风扇向冷排吹风。'),
+      ('pull', '吸冷排', '风扇从冷排吸风。')
+    ] %}
+    {% for key, label, description in cases %}
+    <section class="test-case">
+      <h3 data-i18n="sourceInfo.cases.{{ key }}.name">{{ label }}</h3>
+      <p data-i18n="sourceInfo.cases.{{ key }}.description">{{ description }}</p>
+      <div class="photo-pair test-pair">
+        <figure><img src="/static/imgs/source-info/{{ key }}-airflow.webp" alt="{{ label }} · 风量测试" data-i18n-alt="sourceInfo.cases.{{ key }}.airflow" width="1200" height="800" loading="lazy"><figcaption data-i18n="sourceInfo.cases.{{ key }}.airflow">{{ label }} · 风量测试</figcaption></figure>
+        <figure class="portrait"><img src="/static/imgs/source-info/{{ key }}-noise.webp" alt="{{ label }} · 噪音测试" data-i18n-alt="sourceInfo.cases.{{ key }}.noise" width="800" height="1200" loading="lazy"><figcaption data-i18n="sourceInfo.cases.{{ key }}.noise">{{ label }} · 噪音测试</figcaption></figure>
+      </div>
+    </section>
+    {% endfor %}
+    <div class="radiator-detail">
+      <figure><img src="/static/imgs/source-info/radiator-panel.webp" alt="冷排另一侧加装进气面板" data-i18n-alt="sourceInfo.radiatorPanel" width="1200" height="800" loading="lazy"><figcaption data-i18n="sourceInfo.radiatorPanel">冷排另一侧加装进气面板</figcaption></figure>
+      <div><h3 data-i18n="sourceInfo.radiatorSetup">冷排工况说明</h3><p data-i18n="sourceInfo.radiatorSetupDescription">吹冷排和吸冷排测试均在冷排另一侧加装进气面板，模拟冷排安装在机箱内的情况。</p></div>
+    </div>
+
+    <h2 data-i18n="sourceInfo.whistle">啸叫测试</h2>
+    <p data-i18n="sourceInfo.whistleIntro">以进气测试中有效风量达到 40 CFM 时的转速和噪音为基准，交换排气面板与进气面板的顺序，比较风扇进风侧面板位置变化带来的噪音变化。</p>
+    <div class="test-case">
+      <div class="photo-pair howl-pair">
+        <figure><img src="/static/imgs/source-info/howl-reference.webp" alt="进气测试基准：排气面板、进气面板、风扇" data-i18n-alt="sourceInfo.whistleReference" width="1200" height="800" loading="lazy"><figcaption data-i18n="sourceInfo.whistleReference">进气测试基准：排气面板 → 进气面板 → 风扇进风面</figcaption></figure>
+        <figure><img src="/static/imgs/source-info/howl-test.webp" alt="啸叫测试：进气面板、排气面板、风扇" data-i18n-alt="sourceInfo.whistleTest" width="1200" height="800" loading="lazy"><figcaption data-i18n="sourceInfo.whistleTest">啸叫测试：进气面板 → 排气面板 → 风扇进风面</figcaption></figure>
+      </div>
+      <p data-i18n="sourceInfo.whistleMethod">进气测试中，进气面板带有 10 mm 垫高；啸叫测试中，排气面板紧贴风扇进风面，可能激发啸叫。在基准转速下录制噪声，与进气测试同转速的噪声比较，通过噪音增加量和啸叫测点的音调度评判啸叫程度。</p>
+    </div>
+    <h2 data-i18n="sourceInfo.notes">说明</h2>
+    <p data-i18n="sourceInfo.disclaimer">本页面图片及文字说明来自实际测试及记录。由于设备与环境并非标准实验室条件，结果适合作为相对对比参考，不作为严格标定依据。</p>
+    <div class="mt-12"><a href="/?view=workspace" class="inline-block px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition" data-i18n-title="site.home" title="返回主页">← <span data-i18n="site.home">返回主页</span></a></div>
+    <footer class="text-center text-xs py-8 opacity-70">© {{ current_year or 2026 }} <span data-i18n="site.name">风扇库</span></footer>
+  </main>
+</body>
+</html>
